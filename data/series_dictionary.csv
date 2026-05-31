@@ -1,0 +1,5 @@
+name,series_id,source,frequency,unit,notes,verified
+selic_target,,BCB_SGS,monthly,percent,"TODO: fill SGS code and definition",no
+free_credit_stock,,BCB_SGS,monthly,BRL,"TODO: fill SGS code and definition",no
+directed_credit_stock,,BCB_SGS,monthly,BRL,"TODO: fill SGS code and definition",no
+ipca,,BCB_SGS,monthly,index,"TODO: fill SGS code and definition",no
