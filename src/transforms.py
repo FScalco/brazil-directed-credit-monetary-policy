@@ -166,20 +166,26 @@ def add_policy_variables(df):
     """Add policy-rate and exchange-rate transformations when available."""
     out = df.copy()
 
-    if "selic_monthly_annualized" in out.columns:
-        out["selic_policy_rate"] = out["selic_monthly_annualized"]
-    elif "selic_annual_daily" in out.columns:
-        out["selic_policy_rate"] = out["selic_annual_daily"]
-    elif "selic_policy_rate" not in out.columns and "selic_target" in out.columns:
-        out["selic_policy_rate"] = out["selic_target"]
+    # ------------------------------------------------------------
+    # Policy rate
+    # ------------------------------------------------------------
+    # Preferred policy-rate proxy: monthly annualized Selic.
+    if "selic_policy_rate" not in out.columns:
+        if "selic_monthly_annualized" in out.columns:
+            out["selic_policy_rate"] = out["selic_monthly_annualized"]
+        elif "selic_annual_daily" in out.columns:
+            out["selic_policy_rate"] = out["selic_annual_daily"]
+        elif "selic_target" in out.columns:
+            out["selic_policy_rate"] = out["selic_target"]
 
     if "selic_policy_rate" in out.columns:
-        out["delta_selic"] = (
-            out["selic_policy_rate"] - out["selic_policy_rate"].shift(1)
-        )
+        out["delta_selic"] = out["selic_policy_rate"].diff()
     else:
-        print("Note: selic_policy_rate not found; skipping delta_selic.")
+        print("Note: no Selic policy-rate column found; skipping delta_selic.")
 
+    # ------------------------------------------------------------
+    # Exchange rate
+    # ------------------------------------------------------------
     if "exchange_rate_usd_sale_avg" in out.columns:
         exchange_col = "exchange_rate_usd_sale_avg"
     elif "exchange_rate_commercial_buy_usd" in out.columns:
@@ -194,6 +200,7 @@ def add_policy_variables(df):
                 f"Note: {exchange_col} has non-positive values; "
                 "exchange_rate_log_change set to NaN there."
             )
+
         exchange_log = pd.Series(
             np.where(positive, np.log(out[exchange_col]), np.nan),
             index=out.index,
@@ -206,7 +213,6 @@ def add_policy_variables(df):
         )
 
     return out
-
 
 def trim_to_core_credit_coverage(df):
     """Keep months where the core free and directed credit stocks are present."""
@@ -276,3 +282,4 @@ def missing_summary(df):
             "missing_pct": (100 * df.isna().mean()).to_numpy(),
         }
     )
+
