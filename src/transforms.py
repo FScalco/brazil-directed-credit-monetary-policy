@@ -107,9 +107,19 @@ def monthly_panel_from_long(raw_df, dictionary_df=None):
 
 def add_credit_shares(df):
     """Add total-credit shares for free and directed credit."""
-    _require_columns(df, CREDIT_STOCK_COLUMNS, "monthly panel")
+    component_cols = ["free_credit_stock", "directed_credit_stock"]
+    _require_columns(df, component_cols, "monthly panel")
 
     out = df.copy()
+    if "credit_total_stock" not in out.columns:
+        print(
+            "Note: credit_total_stock not found; constructing it as "
+            "free_credit_stock + directed_credit_stock."
+        )
+        out["credit_total_stock"] = (
+            out["free_credit_stock"] + out["directed_credit_stock"]
+        )
+
     out["directed_credit_share"] = (
         out["directed_credit_stock"] / out["credit_total_stock"]
     )
@@ -156,17 +166,32 @@ def add_policy_variables(df):
     """Add policy-rate and exchange-rate transformations when available."""
     out = df.copy()
 
-    if "selic_target" in out.columns:
-        out["delta_selic"] = out["selic_target"] - out["selic_target"].shift(1)
-    else:
-        print("Note: selic_target not found; skipping delta_selic.")
+    if "selic_monthly_annualized" in out.columns:
+        out["selic_policy_rate"] = out["selic_monthly_annualized"]
+    elif "selic_annual_daily" in out.columns:
+        out["selic_policy_rate"] = out["selic_annual_daily"]
+    elif "selic_policy_rate" not in out.columns and "selic_target" in out.columns:
+        out["selic_policy_rate"] = out["selic_target"]
 
-    exchange_col = "exchange_rate_commercial_buy_usd"
-    if exchange_col in out.columns:
+    if "selic_policy_rate" in out.columns:
+        out["delta_selic"] = (
+            out["selic_policy_rate"] - out["selic_policy_rate"].shift(1)
+        )
+    else:
+        print("Note: selic_policy_rate not found; skipping delta_selic.")
+
+    if "exchange_rate_usd_sale_avg" in out.columns:
+        exchange_col = "exchange_rate_usd_sale_avg"
+    elif "exchange_rate_commercial_buy_usd" in out.columns:
+        exchange_col = "exchange_rate_commercial_buy_usd"
+    else:
+        exchange_col = None
+
+    if exchange_col is not None:
         positive = out[exchange_col] > 0
         if (~positive & out[exchange_col].notna()).any():
             print(
-                "Note: exchange_rate_commercial_buy_usd has non-positive values; "
+                f"Note: {exchange_col} has non-positive values; "
                 "exchange_rate_log_change set to NaN there."
             )
         exchange_log = pd.Series(
@@ -176,11 +201,35 @@ def add_policy_variables(df):
         out["exchange_rate_log_change"] = 100 * exchange_log.diff()
     else:
         print(
-            "Note: exchange_rate_commercial_buy_usd not found; "
+            "Note: exchange_rate_usd_sale_avg not found; "
             "skipping exchange_rate_log_change."
         )
 
     return out
+
+
+def trim_to_core_credit_coverage(df):
+    """Keep months where the core free and directed credit stocks are present."""
+    core_credit_cols = ["free_credit_stock", "directed_credit_stock"]
+    _require_columns(df, core_credit_cols, "monthly panel")
+
+    out = df.copy()
+    keep = out[core_credit_cols].notna().all(axis=1)
+    dropped = int((~keep).sum())
+
+    if dropped:
+        print(
+            "Note: dropped "
+            f"{dropped:,} row(s) with missing core credit variables "
+            "(free_credit_stock or directed_credit_stock)."
+        )
+    else:
+        print(
+            "Note: no rows dropped; core credit variables are available "
+            "for every month."
+        )
+
+    return out.loc[keep].reset_index(drop=True)
 
 
 def add_state_variables(df):

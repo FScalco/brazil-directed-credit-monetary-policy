@@ -1,14 +1,16 @@
 name,series_id,source,frequency,unit,notes,verified
-selic_target,432,BCB_SGS,monthly,percent_annual,"Selic target rate; main monetary policy rate",yes
-central_bank_base_rate_tbc,422,BCB_SGS,monthly,percent_annual,"Central Bank base rate (TBC) in annual terms; historical policy-rate series, not baseline",yes
-central_bank_assistance_rate_tban,423,BCB_SGS,monthly,percent_annual,"Central Bank assistance rate (TBAN) in annual terms; historical policy/assistance rate, not baseline",yes
-inflation_target,13521,BCB_SGS,monthly_or_annual,percent_annual,"Inflation target; useful for policy-rule or inflation-gap controls",yes
+selic_target,432,BCB_SGS,monthly,percent_annual,"Selic target rate; main monetary policy rate",no
+selic_daily,11,BCB_SGS,daily,percent_daily,"Interest rate - Selic; daily series; aggregate to monthly average",no
+selic_annual_daily,1178,BCB_SGS,daily,percent_annual,"Interest rate - Selic in annual terms (basis 252); aggregate to monthly average",no
+selic_monthly_annualized,4189,BCB_SGS,monthly,percent_annual,"Interest rate - Selic accumulated in the month in annual terms (basis 252); baseline policy-rate proxy",yes
+inflation_target,13521,BCB_SGS,annual,percent_annual,"Inflation target; useful for policy-rule or inflation-gap controls",yes
 ipca,433,BCB_SGS,monthly,percent_monthly,"IPCA monthly inflation; main inflation control",yes
 ipca_12m,13522,BCB_SGS,monthly,percent_12_months,"IPCA accumulated in 12 months; useful for descriptive plots or robustness",yes
 industrial_output_general,21859,BCB_SGS,monthly,index_2022_100,"Industrial Output - General (2022=100); preferred real activity control",yes
 gdp_monthly_current_prices,4380,BCB_SGS,monthly,current_brl,"GDP monthly - current prices; alternative activity or scale variable",yes
-exchange_rate_commercial_buy_usd,10813,BCB_SGS,daily,cmu_per_usd,"Commercial exchange rate (buy), c.m.u./US$; nominal exchange-rate control",yes
-credit_total_stock,20539,BCB_SGS,monthly,brl,"Credit outstanding - total",yes
+exchange_rate_commercial_buy_usd,10813,BCB_SGS,daily,cmu_per_usd,"Commercial exchange rate (buy), c.m.u./US$; nominal exchange-rate control",no
+exchange_rate_usd_sale_avg,3698,BCB_SGS,monthly,cmu_per_usd,"United States dollar (sale) - period average; nominal BRL/USD exchange-rate control",yes
+credit_total_stock,20539,BCB_SGS,monthly,brl,"Credit outstanding - total",no
 credit_total_stock_firms,20540,BCB_SGS,monthly,brl,"Credit outstanding - non-financial corporations - total",yes
 credit_total_stock_households,20541,BCB_SGS,monthly,brl,"Credit outstanding - households - total",yes
 free_credit_stock,20542,BCB_SGS,monthly,brl,"Nonearmarked credit outstanding - total; main free-credit quantity outcome",yes

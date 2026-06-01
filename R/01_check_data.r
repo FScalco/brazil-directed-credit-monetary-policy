@@ -172,10 +172,13 @@ if (all(rate_vars %in% names(df))) {
 # ------------------------------------------------------------
 
 macro_vars <- c(
-  "selic_target",
+  "selic_policy_rate",
+  "selic_annual_daily",
+  "delta_selic",
   "ipca",
   "industrial_output_general",
-  "exchange_rate_commercial_buy_usd"
+  "exchange_rate_usd_sale_avg",
+  "exchange_rate_log_change"
 )
 
 macro_vars_existing <- intersect(macro_vars, names(df))
