@@ -318,6 +318,13 @@ horizons <- 0:12
 
 
 
+
+##########################################################################
+################### Financial Passthrough
+
+
+
+
 # Simple LP setup, free rate
 
 lp_results_free_rate <- map_dfr(horizons, function(h) {
@@ -336,9 +343,6 @@ lp_results_free_rate <- map_dfr(horizons, function(h) {
 lp_results_free_rate
 
 
-
-##########################################################################
-################### Financial Passthrough
 
 
 # Simple LP setup, directed rate
@@ -558,7 +562,8 @@ lp_results_industrial_output <- map_dfr(horizons, function(h) {
       delta_selic +
       industrial_output_l1 +
       ipca_l1 +
-      exchange_rate_log_change_l1,
+      exchange_rate_log_change_l1 +
+      selic_policy_rate_l1,
     data = df_lp
   )
   
@@ -568,4 +573,133 @@ lp_results_industrial_output <- map_dfr(horizons, function(h) {
 })
 
 lp_results_industrial_output
+
+
+asdf
+
+
+# ##########################################################################
+# ################### Using the mp shocks
+# 
+# panel_file <- "../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv"
+# 
+# df <- readr::read_csv(panel_file) |>
+#   mutate(month = as.Date(month))
+# 
+# df_lp <- df |>
+#   arrange(month) |>
+#   mutate(
+#     ipca_l1 = lag(ipca, 1),
+#     industrial_output_l1 = lag(industrial_output_general, 1),
+#     exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
+#     selic_policy_rate_l1 = lag(selic_policy_rate, 1)
+#   )
+# 
+# horizons <- 0:12
+# 
+# # Free lending rate
+# lp_results_free_rate_shock <- map_dfr(horizons, function(h) {
+#   model <- lm(
+#     lead(interest_rate_free_new_operations_total, h) ~
+#       mp_shock_pp_zero +
+#       ipca + industrial_output_general + exchange_rate_log_change,
+#     data = df_lp
+#   )
+#   
+#   tidy(model) |>
+#     filter(term == "mp_shock_pp_zero") |>
+#     mutate(horizon = h)
+# })
+# 
+# lp_results_free_rate_shock
+# 
+# 
+# # Directed lending rate
+# lp_results_directed_rate_shock <- map_dfr(horizons, function(h) {
+#   model <- lm(
+#     lead(interest_rate_directed_new_operations_total, h) ~
+#       mp_shock_pp_zero +
+#       ipca + industrial_output_general + exchange_rate_log_change,
+#     data = df_lp
+#   )
+#   
+#   tidy(model) |>
+#     filter(term == "mp_shock_pp_zero") |>
+#     mutate(horizon = h)
+# })
+# 
+# lp_results_directed_rate_shock
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# ##########################################################################
+# ################### Real economy passthrough using MP shocks
+# 
+# 
+# # Setup
+# 
+# df_lp <- df |>
+#   arrange(month) |>
+#   mutate(
+#     ipca_l1 = lag(ipca, 1),
+#     industrial_output_l1 = lag(industrial_output_general, 1),
+#     exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
+#     selic_policy_rate_l1 = lag(selic_policy_rate, 1),
+#     growth_credit_total_stock_l1 = lag(growth_credit_total_stock, 1),
+#     growth_free_credit_stock_l1 = lag(growth_free_credit_stock, 1),
+#     growth_directed_credit_stock_l1 = lag(growth_directed_credit_stock, 1)
+#   )
+# 
+# horizons <- 0:12
+# 
+# run_real_lp <- function(outcome_var, data, horizons = 0:12) {
+#   
+#   map_dfr(horizons, function(h) {
+#     
+#     formula_h <- as.formula(
+#       paste0(
+#         "lead(", outcome_var, ", ", h, ") ~ ",
+#         "mp_shock_pp_zero + ",
+#         "ipca_l1 + industrial_output_l1 + ",
+#         "exchange_rate_log_change_l1 + selic_policy_rate_l1"
+#       )
+#     )
+#     
+#     model <- lm(formula_h, data = data)
+#     
+#     tidy(model) |>
+#       filter(term == "mp_shock_pp_zero") |>
+#       mutate(
+#         outcome = outcome_var,
+#         horizon = h
+#       )
+#   })
+# }
+# 
+# 
+# # Results
+# 
+# real_outcomes <- c(
+#   "ipca",
+#   "industrial_output_general",
+#   "growth_credit_total_stock",
+#   "growth_free_credit_stock",
+#   "growth_directed_credit_stock"
+# )
+# 
+# lp_real_results <- map_dfr(
+#   real_outcomes,
+#   ~ run_real_lp(.x, data = df_lp, horizons = horizons)
+# )
+# 
+# lp_real_results
+# 
+
+
 
