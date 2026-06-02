@@ -10,7 +10,7 @@ industrial_output_general,21859,BCB_SGS,monthly,index_2022_100,"Industrial Outpu
 gdp_monthly_current_prices,4380,BCB_SGS,monthly,current_brl,"GDP monthly - current prices; alternative activity or scale variable",yes
 exchange_rate_commercial_buy_usd,10813,BCB_SGS,daily,cmu_per_usd,"Commercial exchange rate (buy), c.m.u./US$; nominal exchange-rate control",no
 exchange_rate_usd_sale_avg,3698,BCB_SGS,monthly,cmu_per_usd,"United States dollar (sale) - period average; nominal BRL/USD exchange-rate control",yes
-credit_total_stock,20539,BCB_SGS,monthly,brl,"Credit outstanding - total",no
+credit_total_stock,20539,BCB_SGS,monthly,brl,"Credit outstanding - total",yes
 credit_total_stock_firms,20540,BCB_SGS,monthly,brl,"Credit outstanding - non-financial corporations - total",yes
 credit_total_stock_households,20541,BCB_SGS,monthly,brl,"Credit outstanding - households - total",yes
 free_credit_stock,20542,BCB_SGS,monthly,brl,"Nonearmarked credit outstanding - total; main free-credit quantity outcome",yes
@@ -19,6 +19,9 @@ free_credit_stock_households,20570,BCB_SGS,monthly,brl,"Nonearmarked credit outs
 directed_credit_stock,20593,BCB_SGS,monthly,brl,"Earmarked credit outstanding - total; main directed-credit quantity outcome",yes
 directed_credit_stock_firms,20594,BCB_SGS,monthly,brl,"Earmarked credit outstanding - nonfinancial corporations - total",yes
 directed_credit_stock_households,20606,BCB_SGS,monthly,brl,"Earmarked credit outstanding - households - total",yes
+credit_total_stock_to_gdp,20622,BCB_SGS,monthly,percent_gdp,"Credit outstanding - total; percent of GDP",yes
+free_credit_stock_to_gdp,20625,BCB_SGS,monthly,percent_gdp,"Nonearmarked credit outstanding - total; percent of GDP",yes
+directed_credit_stock_to_gdp,20628,BCB_SGS,monthly,percent_gdp,"Earmarked credit outstanding - total; percent of GDP",yes
 interest_rate_new_operations_total,25433,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new operations - total",yes
 interest_rate_new_nonrevolving_operations_total,27638,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - total; optional robustness",yes
 interest_rate_new_operations_firms,25434,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new operations - non-financial corporations - total",yes

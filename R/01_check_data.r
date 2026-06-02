@@ -70,24 +70,84 @@ coverage_table <- df |>
 print(coverage_table, n = Inf)
 
 # ------------------------------------------------------------
-# 4. Accounting identity check
-# total credit should be close to free credit + directed credit
+# 4. Summary statistics
 # ------------------------------------------------------------
 
-if (all(c("credit_total_stock", "free_credit_stock", "directed_credit_stock") %in% names(df))) {
-  identity_check <- df |>
-    mutate(
-      credit_sum = free_credit_stock + directed_credit_stock,
-      credit_gap = credit_total_stock - credit_sum,
-      credit_gap_pct = credit_gap / credit_total_stock
-    ) |>
-    summarise(
-      mean_gap_pct = mean(credit_gap_pct, na.rm = TRUE),
-      max_abs_gap_pct = max(abs(credit_gap_pct), na.rm = TRUE)
-    )
+summary_vars <- df |>
+  select(-month) |>
+  select(where(is.numeric))
 
-  print(identity_check)
-}
+summary_stats <- summary_vars |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) |>
+  group_by(variable) |>
+  summarise(
+    n = sum(!is.na(value)),
+    mean = mean(value, na.rm = TRUE),
+    sd = sd(value, na.rm = TRUE),
+    min = min(value, na.rm = TRUE),
+    p25 = quantile(value, 0.25, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    p75 = quantile(value, 0.75, na.rm = TRUE),
+    max = max(value, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  arrange(variable)
+
+print(summary_stats, n = Inf)
+
+
+
+
+# ------------------------------------------------------------
+# 4.5. Summary statistics for selected variables
+# ------------------------------------------------------------
+
+summary_vars <- c(
+  "credit_total_stock",
+  "delta_selic",
+  "directed_credit_share",
+  "exchange_rate_usd_sale_avg",
+  "free_credit_share",
+  "gdp_monthly_current_prices",
+  "selic_policy_rate",
+  "selic_monthly_annualized",
+  "interest_rate_new_operations_total"
+)
+
+summary_vars_existing <- intersect(summary_vars, names(df))
+
+summary_stats <- df |>
+  select(all_of(summary_vars_existing)) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) |>
+  group_by(variable) |>
+  summarise(
+    n = sum(!is.na(value)),
+    mean = mean(value, na.rm = TRUE),
+    sd = sd(value, na.rm = TRUE),
+    min = min(value, na.rm = TRUE),
+    p25 = quantile(value, 0.25, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    p75 = quantile(value, 0.75, na.rm = TRUE),
+    max = max(value, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    across(
+      c(mean, sd, min, p25, median, p75, max),
+      ~ round(.x, 3)
+    )
+  ) |>
+  arrange(match(variable, summary_vars))
+
+print(summary_stats, n = Inf)
 
 # ------------------------------------------------------------
 # 5. Directed and free credit shares
@@ -200,3 +260,27 @@ if (length(macro_vars_existing) > 0) {
       y = NULL
     )
 }
+
+
+
+
+
+# ------------------------------------------------------------
+# Check whether monthly time series is complete
+# ------------------------------------------------------------
+
+month_check <- df |>
+  summarise(
+    first_month = min(month, na.rm = TRUE),
+    last_month = max(month, na.rm = TRUE),
+    n_rows = n(),
+    n_unique_months = n_distinct(month),
+    expected_months = interval(
+      min(month, na.rm = TRUE),
+      max(month, na.rm = TRUE)
+    ) %/% months(1) + 1,
+    duplicate_months = n_rows - n_unique_months,
+    is_complete_monthly_series = n_unique_months == expected_months
+  )
+
+print(month_check)
