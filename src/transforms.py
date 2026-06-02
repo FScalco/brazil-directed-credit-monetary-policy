@@ -105,25 +105,52 @@ def monthly_panel_from_long(raw_df, dictionary_df=None):
     return panel
 
 
+# def add_credit_shares(df):
+#     """Add total-credit shares for free and directed credit."""
+#     component_cols = ["free_credit_stock", "directed_credit_stock"]
+#     _require_columns(df, component_cols, "monthly panel")
+
+#     out = df.copy()
+#     if "credit_total_stock" not in out.columns:
+#         print(
+#             "Note: credit_total_stock not found; constructing it as "
+#             "free_credit_stock + directed_credit_stock."
+#         )
+#         out["credit_total_stock"] = (
+#             out["free_credit_stock"] + out["directed_credit_stock"]
+#         )
+
+#     out["directed_credit_share"] = (
+#         out["directed_credit_stock"] / out["credit_total_stock"]
+#     )
+#     out["free_credit_share"] = out["free_credit_stock"] / out["credit_total_stock"]
+#     out["credit_gap_check"] = (
+#         out["credit_total_stock"]
+#         - out["free_credit_stock"]
+#         - out["directed_credit_stock"]
+#     )
+#     out["credit_gap_check_pct"] = (
+#         out["credit_gap_check"] / out["credit_total_stock"]
+#     )
+#     return out
 def add_credit_shares(df):
     """Add total-credit shares for free and directed credit."""
-    component_cols = ["free_credit_stock", "directed_credit_stock"]
-    _require_columns(df, component_cols, "monthly panel")
+    required_cols = [
+        "credit_total_stock",
+        "free_credit_stock",
+        "directed_credit_stock",
+    ]
+    _require_columns(df, required_cols, "monthly panel")
 
     out = df.copy()
-    if "credit_total_stock" not in out.columns:
-        print(
-            "Note: credit_total_stock not found; constructing it as "
-            "free_credit_stock + directed_credit_stock."
-        )
-        out["credit_total_stock"] = (
-            out["free_credit_stock"] + out["directed_credit_stock"]
-        )
 
     out["directed_credit_share"] = (
         out["directed_credit_stock"] / out["credit_total_stock"]
     )
-    out["free_credit_share"] = out["free_credit_stock"] / out["credit_total_stock"]
+    out["free_credit_share"] = (
+        out["free_credit_stock"] / out["credit_total_stock"]
+    )
+
     out["credit_gap_check"] = (
         out["credit_total_stock"]
         - out["free_credit_stock"]
@@ -132,6 +159,7 @@ def add_credit_shares(df):
     out["credit_gap_check_pct"] = (
         out["credit_gap_check"] / out["credit_total_stock"]
     )
+
     return out
 
 
