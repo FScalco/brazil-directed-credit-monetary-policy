@@ -550,7 +550,6 @@ lp_results_ipca
 
 
 
-
 # Simple LP for Industrial Output
 lp_results_industrial_output <- map_dfr(horizons, function(h) {
   

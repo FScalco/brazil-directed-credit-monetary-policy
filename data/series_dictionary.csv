@@ -37,3 +37,4 @@ interest_rate_directed_new_operations_households,25493,BCB_SGS,monthly,percent_m
 icc_total,25351,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - total; alternative price/cost measure",yes
 icc_firms,25352,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - nonfinancial corporations - total",yes
 icc_households,25353,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - individuals - total",yes
+unemployment_rate_pnadc,24369,BCB_SGS,monthly,percent,"Unemployment rate - PNAD Contínua; main labor-market slack control for monetary-policy specification",yes
