@@ -78,7 +78,7 @@ output_gap_var <- "output_gap"
 
 # Check created variables
 df %>%
-  select(month, selic_policy_rate, delta_selic, output_gap, inflation_gap, directed_credit_share) %>%
+  select(month, selic_policy_rate, delta_selic, output_gap, inflation_gap, directed_credit_share, icbr_commodities) %>%
   tail()
 
 
@@ -86,7 +86,7 @@ df %>%
 # Helper: create lags
 # ------------------------------------------------------------
 
-make_lags <- function(data, vars, n_lags = 3) {
+make_lags <- function(data, vars, n_lags = 6) {
   out <- data
   
   for (v in vars) {
@@ -100,29 +100,45 @@ make_lags <- function(data, vars, n_lags = 3) {
 }
 
 
+# ------------------------------------------------------------
+# Helper: block wild bootstrap weights
+# ------------------------------------------------------------
+
+block_wild_weights <- function(n, block_length) {
+  n_blocks <- ceiling(n / block_length)
+  block_weights <- sample(c(-1, 1), size = n_blocks, replace = TRUE)
+  rep(block_weights, each = block_length)[1:n]
+}
 
 
+
+################### Taking out COVID period from sample
+
+df_no_covid <- df %>%
+  filter(month < as.Date("2020-03-01") | month > as.Date("2020-12-01"))
 
 # ------------------------------------------------------------
 # Smooth-transition Taylor-rule LP
 # ------------------------------------------------------------
 
-estimate_smooth_policy_lp <- function(data,
+estimate_smooth_policy_lp <- function(data = df_no_covid,
                                       policy_outcome = "delta_selic",
                                       state_var = "directed_credit_share",
                                       output_gap_var = "output_gap",
                                       inflation_gap_var = "inflation_gap",
                                       control_vars = NULL,
+                                      current_control_vars = NULL,
                                       horizons = 0:12,
-                                      n_lags = 3,
-                                      gamma = 1.5) {
+                                      n_lags = 6,
+                                      gamma = 3) {
   
   control_vars <- control_vars[control_vars %in% names(data)]
+  current_control_vars <- current_control_vars[current_control_vars %in% names(data)]
   
   # Lags included as ordinary controls.
   # These help absorb policy persistence and macro dynamics.
   lag_vars <- unique(c(
-    policy_outcome,
+    "selic_policy_rate",
     output_gap_var,
     inflation_gap_var,
     control_vars
@@ -164,7 +180,9 @@ estimate_smooth_policy_lp <- function(data,
         # Future policy response.
         # If policy_outcome = delta_selic, this is future change in Selic.
         # If policy_outcome = selic_policy_rate, this is future Selic level.
-        depvar = lead(.data[[policy_outcome]], h)
+        # depvar = lead(.data[[policy_outcome]], h)
+        depvar = lead(selic_policy_rate,h) - lag(selic_policy_rate,1)
+        
       )
     
     rhs_vars <- c(
@@ -174,7 +192,8 @@ estimate_smooth_policy_lp <- function(data,
       "output_gap_high",
       "inflation_gap_low",
       "inflation_gap_high",
-      lag_control_names
+      lag_control_names,
+      current_control_vars
     )
     
     reg_data <- data_h %>%
@@ -204,43 +223,180 @@ estimate_smooth_policy_lp <- function(data,
     
     model <- lm(fml, data = reg_data)
     
-    # HAC standard errors.
-    # For LPs, residuals are serially correlated at longer horizons.
-    vcov_hac <- NeweyWest(
-      model,
-      lag = h + 1,
-      prewhite = FALSE,
-      adjust = TRUE
-    )
+#     # HAC standard errors.
+#     # For LPs, residuals are serially correlated at longer horizons.
+#     vcov_hac <- NeweyWest(
+#       model,
+#       lag = h + 1,
+#       prewhite = FALSE,
+#       adjust = TRUE
+#     )
+#     
+#     coefs <- coef(model)
+#     V <- vcov_hac
+#     
+#     # Output-gap effects
+#     beta_x_low <- coefs["output_gap_low"]
+#     beta_x_high <- coefs["output_gap_high"]
+#     beta_x_diff <- beta_x_high - beta_x_low
+#     
+#     se_x_low <- sqrt(V["output_gap_low", "output_gap_low"])
+#     se_x_high <- sqrt(V["output_gap_high", "output_gap_high"])
+#     se_x_diff <- sqrt(
+#       V["output_gap_high", "output_gap_high"] +
+#         V["output_gap_low", "output_gap_low"] -
+#         2 * V["output_gap_high", "output_gap_low"]
+#     )
+#     
+#     # Inflation-gap effects
+#     beta_pi_low <- coefs["inflation_gap_low"]
+#     beta_pi_high <- coefs["inflation_gap_high"]
+#     beta_pi_diff <- beta_pi_high - beta_pi_low
+#     
+#     se_pi_low <- sqrt(V["inflation_gap_low", "inflation_gap_low"])
+#     se_pi_high <- sqrt(V["inflation_gap_high", "inflation_gap_high"])
+#     se_pi_diff <- sqrt(
+#       V["inflation_gap_high", "inflation_gap_high"] +
+#         V["inflation_gap_low", "inflation_gap_low"] -
+#         2 * V["inflation_gap_high", "inflation_gap_low"]
+#     )
+#     
+#     results[[as.character(h)]] <- tibble(
+#       h = h,
+#       beta_x_low = beta_x_low,
+#       beta_x_high = beta_x_high,
+#       beta_x_diff = beta_x_diff,
+#       se_x_low = se_x_low,
+#       se_x_high = se_x_high,
+#       se_x_diff = se_x_diff,
+#       beta_pi_low = beta_pi_low,
+#       beta_pi_high = beta_pi_high,
+#       beta_pi_diff = beta_pi_diff,
+#       se_pi_low = se_pi_low,
+#       se_pi_high = se_pi_high,
+#       se_pi_diff = se_pi_diff,
+#       n_obs = nobs(model)
+#     )
+#   }
+#   
+#   bind_rows(results) %>%
+#     mutate(
+#       x_low_lo = beta_x_low - 1.96 * se_x_low,
+#       x_low_hi = beta_x_low + 1.96 * se_x_low,
+#       x_high_lo = beta_x_high - 1.96 * se_x_high,
+#       x_high_hi = beta_x_high + 1.96 * se_x_high,
+#       x_diff_lo = beta_x_diff - 1.96 * se_x_diff,
+#       x_diff_hi = beta_x_diff + 1.96 * se_x_diff,
+#       
+#       pi_low_lo = beta_pi_low - 1.96 * se_pi_low,
+#       pi_low_hi = beta_pi_low + 1.96 * se_pi_low,
+#       pi_high_lo = beta_pi_high - 1.96 * se_pi_high,
+#       pi_high_hi = beta_pi_high + 1.96 * se_pi_high,
+#       pi_diff_lo = beta_pi_diff - 1.96 * se_pi_diff,
+#       pi_diff_hi = beta_pi_diff + 1.96 * se_pi_diff
+#     )
+# }
+
+    
+    # ------------------------------------------------------------
+    # Wild bootstrap inference: basic bootstrap bands
+    # ------------------------------------------------------------
     
     coefs <- coef(model)
-    V <- vcov_hac
     
-    # Output-gap effects
+    # Original estimates
     beta_x_low <- coefs["output_gap_low"]
     beta_x_high <- coefs["output_gap_high"]
     beta_x_diff <- beta_x_high - beta_x_low
     
-    se_x_low <- sqrt(V["output_gap_low", "output_gap_low"])
-    se_x_high <- sqrt(V["output_gap_high", "output_gap_high"])
-    se_x_diff <- sqrt(
-      V["output_gap_high", "output_gap_high"] +
-        V["output_gap_low", "output_gap_low"] -
-        2 * V["output_gap_high", "output_gap_low"]
-    )
-    
-    # Inflation-gap effects
     beta_pi_low <- coefs["inflation_gap_low"]
     beta_pi_high <- coefs["inflation_gap_high"]
     beta_pi_diff <- beta_pi_high - beta_pi_low
     
-    se_pi_low <- sqrt(V["inflation_gap_low", "inflation_gap_low"])
-    se_pi_high <- sqrt(V["inflation_gap_high", "inflation_gap_high"])
-    se_pi_diff <- sqrt(
-      V["inflation_gap_high", "inflation_gap_high"] +
-        V["inflation_gap_low", "inflation_gap_low"] -
-        2 * V["inflation_gap_high", "inflation_gap_low"]
-    )
+    # Bootstrap setup
+    B_boot <- 999
+    n_boot <- nrow(reg_data)
+    
+    boot_x_low <- rep(NA_real_, B_boot)
+    boot_x_high <- rep(NA_real_, B_boot)
+    boot_x_diff <- rep(NA_real_, B_boot)
+    
+    boot_pi_low <- rep(NA_real_, B_boot)
+    boot_pi_high <- rep(NA_real_, B_boot)
+    boot_pi_diff <- rep(NA_real_, B_boot)
+    
+    fitted_vals <- fitted(model)
+    resid_vals <- resid(model)
+    
+    for (b in 1:B_boot) {
+      
+      # Rademacher wild bootstrap weights: +1 or -1
+      omega <- block_wild_weights(n_boot, block_length = 6)
+      
+      boot_data <- reg_data
+      boot_data$depvar <- fitted_vals + resid_vals * omega
+      
+      boot_model <- lm(fml, data = boot_data)
+      boot_coefs <- coef(boot_model)
+      
+      boot_x_low[b] <- boot_coefs["output_gap_low"]
+      boot_x_high[b] <- boot_coefs["output_gap_high"]
+      boot_x_diff[b] <- boot_x_high[b] - boot_x_low[b]
+      
+      boot_pi_low[b] <- boot_coefs["inflation_gap_low"]
+      boot_pi_high[b] <- boot_coefs["inflation_gap_high"]
+      boot_pi_diff[b] <- boot_pi_high[b] - boot_pi_low[b]
+    }
+    
+    # Bootstrap standard errors
+    se_x_low <- sd(boot_x_low, na.rm = TRUE)
+    se_x_high <- sd(boot_x_high, na.rm = TRUE)
+    se_x_diff <- sd(boot_x_diff, na.rm = TRUE)
+    
+    se_pi_low <- sd(boot_pi_low, na.rm = TRUE)
+    se_pi_high <- sd(boot_pi_high, na.rm = TRUE)
+    se_pi_diff <- sd(boot_pi_diff, na.rm = TRUE)
+    
+    # Basic bootstrap confidence intervals:
+    # [2 * beta_hat - q_0.975(beta_star), 2 * beta_hat - q_0.025(beta_star)]
+    
+    x_low_q025 <- quantile(boot_x_low, 0.025, na.rm = TRUE)
+    x_low_q975 <- quantile(boot_x_low, 0.975, na.rm = TRUE)
+    
+    x_high_q025 <- quantile(boot_x_high, 0.025, na.rm = TRUE)
+    x_high_q975 <- quantile(boot_x_high, 0.975, na.rm = TRUE)
+    
+    x_diff_q025 <- quantile(boot_x_diff, 0.025, na.rm = TRUE)
+    x_diff_q975 <- quantile(boot_x_diff, 0.975, na.rm = TRUE)
+    
+    pi_low_q025 <- quantile(boot_pi_low, 0.025, na.rm = TRUE)
+    pi_low_q975 <- quantile(boot_pi_low, 0.975, na.rm = TRUE)
+    
+    pi_high_q025 <- quantile(boot_pi_high, 0.025, na.rm = TRUE)
+    pi_high_q975 <- quantile(boot_pi_high, 0.975, na.rm = TRUE)
+    
+    pi_diff_q025 <- quantile(boot_pi_diff, 0.025, na.rm = TRUE)
+    pi_diff_q975 <- quantile(boot_pi_diff, 0.975, na.rm = TRUE)
+    
+    # Basic bootstrap bands
+    x_low_lo <- 2 * beta_x_low - x_low_q975
+    x_low_hi <- 2 * beta_x_low - x_low_q025
+    
+    x_high_lo <- 2 * beta_x_high - x_high_q975
+    x_high_hi <- 2 * beta_x_high - x_high_q025
+    
+    x_diff_lo <- 2 * beta_x_diff - x_diff_q975
+    x_diff_hi <- 2 * beta_x_diff - x_diff_q025
+    
+    pi_low_lo <- 2 * beta_pi_low - pi_low_q975
+    pi_low_hi <- 2 * beta_pi_low - pi_low_q025
+    
+    pi_high_lo <- 2 * beta_pi_high - pi_high_q975
+    pi_high_hi <- 2 * beta_pi_high - pi_high_q025
+    
+    pi_diff_lo <- 2 * beta_pi_diff - pi_diff_q975
+    pi_diff_hi <- 2 * beta_pi_diff - pi_diff_q025
+    
     
     results[[as.character(h)]] <- tibble(
       h = h,
@@ -250,51 +406,55 @@ estimate_smooth_policy_lp <- function(data,
       se_x_low = se_x_low,
       se_x_high = se_x_high,
       se_x_diff = se_x_diff,
+      
+      x_low_lo = x_low_lo,
+      x_low_hi = x_low_hi,
+      x_high_lo = x_high_lo,
+      x_high_hi = x_high_hi,
+      x_diff_lo = x_diff_lo,
+      x_diff_hi = x_diff_hi,
+      
       beta_pi_low = beta_pi_low,
       beta_pi_high = beta_pi_high,
       beta_pi_diff = beta_pi_diff,
       se_pi_low = se_pi_low,
       se_pi_high = se_pi_high,
       se_pi_diff = se_pi_diff,
+      
+      pi_low_lo = pi_low_lo,
+      pi_low_hi = pi_low_hi,
+      pi_high_lo = pi_high_lo,
+      pi_high_hi = pi_high_hi,
+      pi_diff_lo = pi_diff_lo,
+      pi_diff_hi = pi_diff_hi,
+      
       n_obs = nobs(model)
     )
+    
   }
-  
-  bind_rows(results) %>%
-    mutate(
-      x_low_lo = beta_x_low - 1.96 * se_x_low,
-      x_low_hi = beta_x_low + 1.96 * se_x_low,
-      x_high_lo = beta_x_high - 1.96 * se_x_high,
-      x_high_hi = beta_x_high + 1.96 * se_x_high,
-      x_diff_lo = beta_x_diff - 1.96 * se_x_diff,
-      x_diff_hi = beta_x_diff + 1.96 * se_x_diff,
-      
-      pi_low_lo = beta_pi_low - 1.96 * se_pi_low,
-      pi_low_hi = beta_pi_low + 1.96 * se_pi_low,
-      pi_high_lo = beta_pi_high - 1.96 * se_pi_high,
-      pi_high_hi = beta_pi_high + 1.96 * se_pi_high,
-      pi_diff_lo = beta_pi_diff - 1.96 * se_pi_diff,
-      pi_diff_hi = beta_pi_diff + 1.96 * se_pi_diff
-    )
+    bind_rows(results)
+    
 }
-
 
 
 # Estimating the model 
 policy_lp <- estimate_smooth_policy_lp(
-  data = df,
-  policy_outcome = "delta_selic",
+  data = df_no_covid,
   state_var = "directed_credit_share",
   output_gap_var = "output_gap",
   inflation_gap_var = "inflation_gap",
   control_vars = c(
     "exchange_rate_log_change",
-    "growth_free_credit_stock",
-    "growth_directed_credit_stock"
+    "growth_credit_total_stock",
+    "growth_icbr_commodities"
+  ),
+  current_control_vars = c(
+    "exchange_rate_log_change",
+    "growth_icbr_commodities"
   ),
   horizons = 0:12,
-  n_lags = 3,
-  gamma = 1.5
+  n_lags = 6,
+  gamma = 3
 )
 
 
@@ -386,3 +546,5 @@ p3 <- ggplot(plot_inflation_gap_effects, aes(x = h, y = estimate)) +
   theme_minimal()
 
 ggsave("figures/smooth_trans_pol_reaction_inflation.png", p3, width = 9, height = 5, dpi = 300)
+
+

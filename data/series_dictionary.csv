@@ -23,11 +23,11 @@ credit_total_stock_to_gdp,20622,BCB_SGS,monthly,percent_gdp,"Credit outstanding 
 free_credit_stock_to_gdp,20625,BCB_SGS,monthly,percent_gdp,"Nonearmarked credit outstanding - total; percent of GDP",yes
 directed_credit_stock_to_gdp,20628,BCB_SGS,monthly,percent_gdp,"Earmarked credit outstanding - total; percent of GDP",yes
 interest_rate_new_operations_total,25433,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new operations - total",yes
-interest_rate_new_nonrevolving_operations_total,27638,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - total; optional robustness",yes
+interest_rate_new_nonrevolving_operations_total,27638,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - total; optional robustness",no
 interest_rate_new_operations_firms,25434,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new operations - non-financial corporations - total",yes
-interest_rate_new_nonrevolving_operations_firms,27639,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - non-financial corporations - total; optional robustness",yes
+interest_rate_new_nonrevolving_operations_firms,27639,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - non-financial corporations - total; optional robustness",no
 interest_rate_new_operations_households,25435,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new operations - individual persons - total",yes
-interest_rate_new_nonrevolving_operations_households,27640,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - individual persons - total; optional robustness",yes
+interest_rate_new_nonrevolving_operations_households,27640,BCB_SGS,monthly,percent_monthly,"Month average interest rate - new non-revolving operations - individual persons - total; optional robustness",no
 interest_rate_free_new_operations_total,25436,BCB_SGS,monthly,percent_monthly,"Month average interest rate - nonearmarked new operations - total; main free-credit price outcome",yes
 interest_rate_free_new_operations_firms,25437,BCB_SGS,monthly,percent_monthly,"Month average interest rate - nonearmarked new operations - non-financial corporations - total",yes
 interest_rate_free_new_operations_households,25462,BCB_SGS,monthly,percent_monthly,"Month average interest rate - nonearmarked new operations - households - total",yes
@@ -38,3 +38,4 @@ icc_total,25351,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loa
 icc_firms,25352,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - nonfinancial corporations - total",yes
 icc_households,25353,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - individuals - total",yes
 unemployment_rate_pnadc,24369,BCB_SGS,monthly,percent,"Unemployment rate - PNAD Contínua; main labor-market slack control for monetary-policy specification",yes
+icbr_commodities,27574,BCB_SGS,monthly,index_dec_2005_100,"IC-Br - Commodity Index - Brazil; weighted commodity-price index in BRL; useful external/commodity-price control",yes

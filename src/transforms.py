@@ -15,6 +15,8 @@ LOG_CREDIT_COLUMNS = [
     "log_free_credit_stock",
     "log_directed_credit_stock",
 ]
+ICBR_COMMODITY_COLUMN = "icbr_commodities"
+LOG_ICBR_COMMODITY_COLUMN = f"log_{ICBR_COMMODITY_COLUMN}"
 
 
 def _require_columns(df, columns, context="DataFrame"):
@@ -168,7 +170,11 @@ def add_log_credit_variables(df):
     _require_columns(df, CREDIT_STOCK_COLUMNS, "monthly panel")
 
     out = df.copy()
-    for col in CREDIT_STOCK_COLUMNS:
+    log_columns = CREDIT_STOCK_COLUMNS.copy()
+    if ICBR_COMMODITY_COLUMN in out.columns:
+        log_columns.append(ICBR_COMMODITY_COLUMN)
+
+    for col in log_columns:
         log_col = f"log_{col}"
         positive = out[col] > 0
         if (~positive & out[col].notna()).any():
@@ -187,6 +193,8 @@ def add_growth_rates(df):
     out["growth_directed_credit_stock"] = (
         100 * out["log_directed_credit_stock"].diff()
     )
+    if LOG_ICBR_COMMODITY_COLUMN in out.columns:
+        out["growth_icbr_commodities"] = 100 * out[LOG_ICBR_COMMODITY_COLUMN].diff()
     return out
 
 
@@ -310,4 +318,3 @@ def missing_summary(df):
             "missing_pct": (100 * df.isna().mean()).to_numpy(),
         }
     )
-
