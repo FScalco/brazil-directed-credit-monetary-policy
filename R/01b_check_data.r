@@ -11,7 +11,7 @@ library(lubridate)
 library(janitor)
 library(scales)
 
-panel_file <- "../data/processed/brazil_credit_monthly_panel.csv"
+panel_file <- "../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv"
 
 df <- read_csv(panel_file, show_col_types = FALSE) |>
   clean_names() |>
