@@ -55,11 +55,11 @@ df <- df %>%
     #IBC-br as output gap
     log_ibc_trend = fitted(output_gap_model),
     ibc_br_trend = exp(log_ibc_trend),
-    output_gap = resid(output_gap_model) * 100,
+    ibc_output_gap = resid(output_gap_model) * 100,
     #Industrial output as output gap
     log_ip_trend = fitted(output_gap_model_alt),
     industrial_output_trend = exp(log_ip_trend),
-    output_gap_alt = resid(output_gap_model_alt) * 100
+    ind_output_gap = resid(output_gap_model_alt) * 100
   ) %>%
   select(-t, -calendar_month, -log_ip, -log_ip_trend, -log_ibc_br ,-log_ibc_trend)
 

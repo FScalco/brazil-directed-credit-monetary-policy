@@ -92,15 +92,15 @@ df_no_covid <- df %>%
 # ------------------------------------------------------------
 
 estimate_smooth_policy_lp <- function(data = df_no_covid,
-                                      policy_outcome = "delta_selic",
+                                      #policy_outcome = "delta_selic",
                                       state_var = "directed_credit_share",
-                                      output_gap_var = "output_gap",
-                                      inflation_gap_var = "inflation_gap",
+                                      output_gap_var = "ibc_output_gap",
+                                      inflation_gap_var = "focus_inflation_gap",
                                       control_vars = NULL,
                                       current_control_vars = NULL,
                                       horizons = 0:12,
                                       n_lags = 6,
-                                      gamma = 3,
+                                      gamma = 1.5,
                                       state_threshold_quantile = 0.75,
                                       B_boot = 999,
                                       block_length = 6) {
@@ -334,8 +334,8 @@ estimate_smooth_policy_lp <- function(data = df_no_covid,
 policy_lp <- estimate_smooth_policy_lp(
   data = df_no_covid,
   state_var = "directed_credit_share",
-  output_gap_var = "output_gap",
-  inflation_gap_var = "inflation_gap",
+  output_gap_var = "ibc_output_gap",
+  inflation_gap_var = "focus_inflation_gap",
   control_vars = c(
     #"exchange_rate_log_change",
     "growth_credit_total_stock",
@@ -395,7 +395,7 @@ p_output_levels <- ggplot(plot_output_gap_effects, aes(x = h, y = estimate)) +
   theme_minimal()
 
 ggsave(
-  "figures/smooth_policy_reaction_output_baseline_vs_high.png",
+  "figures/reaction/smooth_policy_reaction_output_baseline_vs_high.png",
   p_output_levels,
   width = 9,
   height = 5,
@@ -417,7 +417,7 @@ p_output_extra <- ggplot(policy_lp, aes(x = h, y = beta_x_extra)) +
   theme_minimal()
 
 ggsave(
-  "figures/smooth_extra_output.png",
+  "figures/reaction/smooth_extra_output.png",
   p_output_extra,
   width = 9,
   height = 5,
@@ -464,7 +464,7 @@ p_inflation_levels <- ggplot(plot_inflation_gap_effects, aes(x = h, y = estimate
   theme_minimal()
 
 ggsave(
-  "figures/smooth_policy_reaction_inflation_baseline_vs_high.png",
+  "figures/reaction/smooth_policy_reaction_inflation_baseline_vs_high.png",
   p_inflation_levels,
   width = 9,
   height = 5,
@@ -486,7 +486,7 @@ p_inflation_extra <- ggplot(policy_lp, aes(x = h, y = beta_pi_extra)) +
   theme_minimal()
 
 ggsave(
-  "figures/smooth_extra_inflation.png",
+  "figures/reaction/smooth_extra_inflation.png",
   p_inflation_extra,
   width = 9,
   height = 5,

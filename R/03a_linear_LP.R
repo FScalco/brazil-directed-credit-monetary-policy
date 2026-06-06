@@ -15,6 +15,9 @@ df <- df %>%
   mutate(
     t = row_number(),
     calendar_month = month(month)
+    
+    
+    
 #    log_ip = log(industrial_output_general)
     
     # Inflation gap: inflation minus target
@@ -38,12 +41,12 @@ df <- df %>%
 
 
 
-output_gap_var <- "output_gap"
-
-# Check created variables
-df %>%
-  select(month, selic_policy_rate, delta_selic, output_gap, inflation_gap, directed_credit_share, icbr_commodities) %>%
-  tail()
+# output_gap_var <- "output_gap"
+# 
+# # Check created variables
+# df %>%
+#   select(month, selic_policy_rate, delta_selic, output_gap, inflation_gap, directed_credit_share, icbr_commodities) %>%
+#   tail()
 
 
 # ------------------------------------------------------------
@@ -80,20 +83,20 @@ block_wild_weights <- function(n, block_length) {
 
 
 
-df <- df %>%
-  mutate(
-    output_gap_w = pmin(
-      pmax(output_gap, quantile(output_gap, 0.01, na.rm = TRUE)),
-      quantile(output_gap, 0.99, na.rm = TRUE)
-    )
-  )
+# df <- df %>%
+#   mutate(
+#     output_gap_w = pmin(
+#       pmax(output_gap, quantile(output_gap, 0.01, na.rm = TRUE)),
+#       quantile(output_gap, 0.99, na.rm = TRUE)
+#     )
+#   )
 
 df_no_covid <- df %>%
   filter(month < as.Date("2020-03-01") | month > as.Date("2020-12-01"))
 
 estimate_linear_policy_lp <- function(data = df_no_covid,
-                                      output_gap_var = "output_gap_alt",
-                                      inflation_gap_var = "inflation_gap",
+                                      output_gap_var = "ibc_output_gap",
+                                      inflation_gap_var = "focus_inflation_gap",
                                       control_vars = NULL,
                                       current_control_vars = NULL,
                                       horizons = 0:12,
@@ -304,8 +307,8 @@ estimate_linear_policy_lp <- function(data = df_no_covid,
 
 policy_lp_linear <- estimate_linear_policy_lp(
   data = df_no_covid,
-  output_gap_var = "output_gap",
-  inflation_gap_var = "inflation_gap",
+  output_gap_var = "ibc_output_gap",
+  inflation_gap_var = "focus_inflation_gap",
   control_vars = c(
 #    "exchange_rate_log_change",
     "growth_credit_total_stock",
@@ -316,7 +319,7 @@ policy_lp_linear <- estimate_linear_policy_lp(
     "growth_icbr_commodities"
   ),
   horizons = 0:12,
-  n_lags = 3
+  n_lags = 6
 )
 
 
@@ -335,7 +338,7 @@ p_linear_x <- ggplot(policy_lp_linear, aes(x = h, y = beta_x)) +
   ) +
   theme_minimal()
 
-ggsave("figures/linear_policy_reaction_output.png", p_linear_x, width = 8, height = 5, dpi = 300)
+ggsave("figures/reaction/linear_policy_reaction_output.png", p_linear_x, width = 8, height = 5, dpi = 300)
 
 
 p_linear_pi <- ggplot(policy_lp_linear, aes(x = h, y = beta_pi)) +
@@ -351,7 +354,7 @@ p_linear_pi <- ggplot(policy_lp_linear, aes(x = h, y = beta_pi)) +
   ) +
   theme_minimal()
 
-ggsave("figures/linear_policy_reaction_inflation.png", p_linear_pi, width = 8, height = 5, dpi = 300)
+ggsave("figures/reaction/linear_policy_reaction_inflation.png", p_linear_pi, width = 8, height = 5, dpi = 300)
 
 
 
@@ -367,8 +370,8 @@ ggsave("figures/linear_policy_reaction_inflation.png", p_linear_pi, width = 8, h
 
 # Quick sample-size / overfitting check for current linear LP spec
 
-output_gap_var <- "output_gap"
-inflation_gap_var <- "inflation_gap"
+output_gap_var <- "ibc_output_gap"
+inflation_gap_var <- "focus_inflation_gap"
 
 control_vars <- c(
   "growth_credit_total_stock",
