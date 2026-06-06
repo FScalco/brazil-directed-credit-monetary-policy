@@ -41,17 +41,20 @@ df |>
 
 main_vars <- c(
   "selic_policy_rate",
-  "delta_selic",
+#  "delta_selic",
   "ipca",
   "industrial_output_general",
   "exchange_rate_log_change",
-  "free_credit_stock",
-  "directed_credit_stock",
+#  "free_credit_stock",
+#  "directed_credit_stock",
   "directed_credit_share",
-  "growth_free_credit_stock",
-  "growth_directed_credit_stock",
+#  "growth_free_credit_stock",
+#  "growth_directed_credit_stock",
   "interest_rate_free_new_operations_total",
-  "interest_rate_directed_new_operations_total"
+  "interest_rate_directed_new_operations_total",
+  "inflation_gap",
+  "icbr_commodities",
+  "growth_icbr_commodities"
 )
 
 df |>
@@ -90,6 +93,15 @@ df |>
   geom_line() +
   facet_wrap(~ variable, scales = "free_y") +
   theme_minimal()
+
+df |>
+  select(month, output_gap, output_gap_alt) |>
+  pivot_longer(-month, names_to = "variable", values_to = "value") |>
+  ggplot(aes(month, value)) +
+  geom_line() +
+  facet_wrap(~ variable, scales = "free_y") +
+  theme_minimal()
+
 
 # Focus: free vs directed interest rates ---------------------------------
 

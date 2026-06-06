@@ -39,3 +39,4 @@ icc_firms,25352,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loa
 icc_households,25353,BCB_SGS,monthly,percent_monthly,"Average cost of outstanding loans, ICC - individuals - total",yes
 unemployment_rate_pnadc,24369,BCB_SGS,monthly,percent,"Unemployment rate - PNAD Contínua; main labor-market slack control for monetary-policy specification",yes
 icbr_commodities,27574,BCB_SGS,monthly,index_dec_2005_100,"IC-Br - Commodity Index - Brazil; weighted commodity-price index in BRL; useful external/commodity-price control",yes
+ibc_br_sa,24364,BCB_SGS,monthly,index_2002_100,"Central Bank Economic Activity Index (IBC-Br), seasonally adjusted; preferred broad monthly real activity proxy",yes

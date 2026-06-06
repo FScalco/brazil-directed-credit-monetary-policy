@@ -1,6 +1,8 @@
+## I merge the MP shock series, and also create the macro gap variables
+
+
 library(tidyverse)
 library(lubridate)
-library(readr)
 
 # Paths
 panel_path <- "../data/processed/brazil_credit_monthly_panel.csv"
@@ -8,7 +10,64 @@ shock_path <- "../data/raw/MP_shocks.csv"
 
 # Load monthly panel
 panel <- read_csv(panel_path, show_col_types = FALSE) %>%
-  mutate(month = as.Date(month))
+  mutate(month = as.Date(month)) %>%
+  arrange(month)
+
+
+df <- panel %>%
+  mutate(
+    t = row_number(),
+    calendar_month = month(month),
+    
+    # Output gap 1: BCB's economic activity proxy
+    log_ibc_br = log(ibc_br_sa),
+    
+    # Output gap 2: industrial output
+    log_ip = log(industrial_output_general),
+    
+    # Inflation gap: inflation minus target
+    inflation_gap = ipca_12m - inflation_target
+  )
+
+
+# Output gap proxy 1:
+# residual from log IBC index on trend
+# Multiplied by 100, so it's approx. a pct deviation from trend
+output_gap_model = lm(
+  log_ibc_br ~ t,
+  data = df,
+  na.action = na.exclude
+)
+
+
+
+# Output gap proxy 2:
+# residual from log industrial production on trend and seasonality.
+# Multiplied by 100, so it is approximately percentage deviation from trend.
+output_gap_model_alt <- lm(
+  log_ip ~ t + factor(calendar_month),
+  data = df,
+  na.action = na.exclude
+)
+
+df <- df %>%
+  mutate(
+    #IBC-br as output gap
+    log_ibc_trend = fitted(output_gap_model),
+    ibc_br_trend = exp(log_ibc_trend),
+    output_gap = resid(output_gap_model) * 100,
+    #Industrial output as output gap
+    log_ip_trend = fitted(output_gap_model_alt),
+    industrial_output_trend = exp(log_ip_trend),
+    output_gap_alt = resid(output_gap_model_alt) * 100
+  ) %>%
+  select(-t, -calendar_month, -log_ip, -log_ip_trend, -log_ibc_br ,-log_ibc_trend)
+
+
+
+
+
+
 
 # Load shocks and keep Brazil
 mp_brazil_monthly <- read_csv(shock_path, show_col_types = FALSE) %>%
@@ -32,7 +91,7 @@ mp_brazil_monthly <- read_csv(shock_path, show_col_types = FALSE) %>%
   )
 
 # Merge into panel
-panel_mp <- panel %>%
+panel_mp <- df %>%
   left_join(mp_brazil_monthly, by = "month") %>%
   mutate(
     # Set missing shock months to zero if you want a monthly series with no-event months = 0.

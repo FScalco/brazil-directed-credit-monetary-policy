@@ -14,34 +14,8 @@ df <- read_csv("../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv
 df <- df %>%
   mutate(
     t = row_number(),
-    calendar_month = month(month),
-    log_ip = log(industrial_output_general),
-    
-    # Inflation gap: inflation minus target
-    inflation_gap = ipca_12m - inflation_target
-  )
-
-# Output gap proxy:
-# residual from log industrial production on trend and seasonality.
-# Multiplied by 100, so it is approximately percentage deviation from trend.
-df <- df %>%
-  mutate(
-    t = row_number(),
-    calendar_month = month(month),
-    log_ip = log(industrial_output_general),
-    inflation_gap = ipca_12m - inflation_target
-  )
-
-output_gap_model <- lm(
-  log_ip ~ t + factor(calendar_month),
-  data = df,
-  na.action = na.exclude
-)
-
-df <- df %>%
-  mutate(
-    output_gap = resid(output_gap_model) * 100
-  )
+    calendar_month = month(month)
+   )
 
 # # HP-filtered industrial production (Optional)
 # library(mFilter)
@@ -76,10 +50,6 @@ df <- df %>%
 
 output_gap_var <- "output_gap"
 
-# Check created variables
-df %>%
-  select(month, selic_policy_rate, delta_selic, output_gap, inflation_gap, directed_credit_share, icbr_commodities) %>%
-  tail()
 
 
 # ------------------------------------------------------------
@@ -367,17 +337,17 @@ policy_lp <- estimate_smooth_policy_lp(
   output_gap_var = "output_gap",
   inflation_gap_var = "inflation_gap",
   control_vars = c(
-    "exchange_rate_log_change",
+    #"exchange_rate_log_change",
     "growth_credit_total_stock",
     "growth_icbr_commodities"
   ),
   current_control_vars = c(
-    "exchange_rate_log_change",
+    #"exchange_rate_log_change",
     "growth_icbr_commodities"
   ),
   horizons = 0:12,
   n_lags = 6,
-  gamma = 3,
+  gamma = 1.5,
   state_threshold_quantile = 0.75,
   B_boot = 999,
   block_length = 6

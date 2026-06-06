@@ -14,34 +14,27 @@ df <- read_csv("../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv
 df <- df %>%
   mutate(
     t = row_number(),
-    calendar_month = month(month),
-    log_ip = log(industrial_output_general),
+    calendar_month = month(month)
+#    log_ip = log(industrial_output_general)
     
     # Inflation gap: inflation minus target
-    inflation_gap = ipca_12m - inflation_target
+    #inflation_gap = ipca_12m - inflation_target
   )
 
 # Output gap proxy:
 # residual from log industrial production on trend and seasonality.
 # Multiplied by 100, so it is approximately percentage deviation from trend.
-df <- df %>%
-  mutate(
-    t = row_number(),
-    calendar_month = month(month),
-    log_ip = log(industrial_output_general),
-    inflation_gap = ipca_12m - inflation_target
-  )
 
-output_gap_model <- lm(
-  log_ip ~ t + factor(calendar_month),
-  data = df,
-  na.action = na.exclude
-)
-
-df <- df %>%
-  mutate(
-    output_gap = resid(output_gap_model) * 100
-  )
+# output_gap_model <- lm(
+#   log_ip ~ t + factor(calendar_month),
+#   data = df,
+#   na.action = na.exclude
+# )
+# 
+# df <- df %>%
+#   mutate(
+#     output_gap = resid(output_gap_model) * 100
+#   )
 
 
 
@@ -99,7 +92,7 @@ df_no_covid <- df %>%
   filter(month < as.Date("2020-03-01") | month > as.Date("2020-12-01"))
 
 estimate_linear_policy_lp <- function(data = df_no_covid,
-                                      output_gap_var = "output_gap",
+                                      output_gap_var = "output_gap_alt",
                                       inflation_gap_var = "inflation_gap",
                                       control_vars = NULL,
                                       current_control_vars = NULL,
@@ -314,12 +307,12 @@ policy_lp_linear <- estimate_linear_policy_lp(
   output_gap_var = "output_gap",
   inflation_gap_var = "inflation_gap",
   control_vars = c(
-    "exchange_rate_log_change",
+#    "exchange_rate_log_change",
     "growth_credit_total_stock",
     "growth_icbr_commodities"
   ),
   current_control_vars = c(
-    "exchange_rate_log_change",
+#    "exchange_rate_log_change",
     "growth_icbr_commodities"
   ),
   horizons = 0:12,
@@ -374,35 +367,34 @@ ggsave("figures/linear_policy_reaction_inflation.png", p_linear_pi, width = 8, h
 
 # Quick sample-size / overfitting check for current linear LP spec
 
-policy_outcome <- "selic_policy_rate"
 output_gap_var <- "output_gap"
 inflation_gap_var <- "inflation_gap"
 
 control_vars <- c(
-  "exchange_rate_log_change",
   "growth_credit_total_stock",
   "growth_icbr_commodities"
 )
 
 current_control_vars <- c(
-  "exchange_rate_log_change",
   "growth_icbr_commodities"
 )
 
 horizons <- 0:12
-n_lags <- 6
+n_lags <- 3
 
-control_vars <- control_vars[control_vars %in% names(df)]
-current_control_vars <- current_control_vars[current_control_vars %in% names(df)]
+data_check <- df_no_covid
+
+control_vars <- control_vars[control_vars %in% names(data_check)]
+current_control_vars <- current_control_vars[current_control_vars %in% names(data_check)]
 
 lag_vars <- unique(c(
-  policy_outcome,
+  "selic_policy_rate",
   output_gap_var,
   inflation_gap_var,
   control_vars
 ))
 
-df_check <- df %>%
+df_check <- data_check %>%
   arrange(month) %>%
   make_lags(lag_vars, n_lags = n_lags)
 
@@ -420,7 +412,9 @@ rhs_vars <- c(
 sample_check <- bind_rows(lapply(horizons, function(h) {
   
   reg_data <- df_check %>%
-    mutate(depvar = lead(.data[[policy_outcome]], h)) %>%
+    mutate(
+      depvar = lead(selic_policy_rate, h) - lag(selic_policy_rate, 1)
+    ) %>%
     select(month, depvar, all_of(rhs_vars)) %>%
     drop_na()
   
