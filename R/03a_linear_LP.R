@@ -311,7 +311,8 @@ policy_lp_linear <- estimate_linear_policy_lp(
   inflation_gap_var = "focus_inflation_gap",
   control_vars = c(
 #    "exchange_rate_log_change",
-    "growth_credit_total_stock",
+#    "growth_credit_total_stock",
+#    "growth_free_credit_stock",
     "growth_icbr_commodities"
   ),
   current_control_vars = c(
@@ -325,34 +326,62 @@ policy_lp_linear <- estimate_linear_policy_lp(
 
 
 
+# p_linear_x <- ggplot(policy_lp_linear, aes(x = h, y = beta_x)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(aes(ymin = x_lo, ymax = x_hi), alpha = 0.25) +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8) +
+#   labs(
+#     title = "Linear policy reaction to the output gap",
+#     subtitle = "Non-threshold LP; dependent variable: future change in Selic",
+#     x = "Horizon",
+#     y = "Marginal effect of output gap on Selic change"
+#   ) +
+#   theme_minimal()
+
 p_linear_x <- ggplot(policy_lp_linear, aes(x = h, y = beta_x)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(aes(ymin = x_lo, ymax = x_hi), alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = x_lo, ymax = x_hi), alpha = 0.20) +
   geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8) +
+  geom_point(size = 1.7) +
+  scale_x_continuous(breaks = 0:12) +
   labs(
-    title = "Linear policy reaction to the output gap",
-    subtitle = "Non-threshold LP; dependent variable: future change in Selic",
-    x = "Horizon",
-    y = "Marginal effect of output gap on Selic change"
+    title = "Policy reaction to the output gap",
+    subtitle = "Linear local projection; cumulative Selic response",
+    x = "Horizon (months)",
+    y = "Cumulative Selic response, p.p"
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 12)
 
 ggsave("figures/reaction/linear_policy_reaction_output.png", p_linear_x, width = 8, height = 5, dpi = 300)
 
 
+# p_linear_pi <- ggplot(policy_lp_linear, aes(x = h, y = beta_pi)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(aes(ymin = pi_lo, ymax = pi_hi), alpha = 0.25) +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8) +
+#   labs(
+#     title = "Linear policy reaction to the inflation gap",
+#     subtitle = "Non-threshold LP; dependent variable: future change in Selic",
+#     x = "Horizon",
+#     y = "Marginal effect of inflation gap on Selic change"
+#   ) +
+#   theme_minimal()
+
 p_linear_pi <- ggplot(policy_lp_linear, aes(x = h, y = beta_pi)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(aes(ymin = pi_lo, ymax = pi_hi), alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = pi_lo, ymax = pi_hi), alpha = 0.20) +
   geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8) +
+  geom_point(size = 1.7) +
+  scale_x_continuous(breaks = 0:12) +
   labs(
-    title = "Linear policy reaction to the inflation gap",
-    subtitle = "Non-threshold LP; dependent variable: future change in Selic",
-    x = "Horizon",
-    y = "Marginal effect of inflation gap on Selic change"
+    title = "Policy reaction to the inflation gap",
+    subtitle = "Linear local projection; cumulative Selic response",
+    x = "Horizon (months)",
+    y = "Cumulative Selic response, p.p"
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 12)
 
 ggsave("figures/reaction/linear_policy_reaction_inflation.png", p_linear_pi, width = 8, height = 5, dpi = 300)
 
