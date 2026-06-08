@@ -402,27 +402,50 @@ ggsave(
   dpi = 300
 )
 
+# 
+# p_output_extra <- ggplot(policy_lp, aes(x = h, y = beta_x_extra)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(aes(ymin = x_extra_lo, ymax = x_extra_hi), alpha = 0.25) +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8) +
+#   labs(
+#     title = "Does directed credit amplify the policy reaction to the output gap?",
+#     subtitle = "Smooth-transition LP: additional response when directed-credit share is high",
+#     x = "Horizon",
+#     y = "Additional output-gap coefficient"
+#   ) +
+#   theme_minimal()
+# 
+# ggsave(
+#   "figures/reaction/smooth_extra_output.png",
+#   p_output_extra,
+#   width = 9,
+#   height = 5,
+#   dpi = 300
+# )
 
 p_output_extra <- ggplot(policy_lp, aes(x = h, y = beta_x_extra)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(aes(ymin = x_extra_lo, ymax = x_extra_hi), alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = x_extra_lo, ymax = x_extra_hi), alpha = 0.20) +
   geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8) +
+  geom_point(size = 1.7) +
+  scale_x_continuous(breaks = 0:12) +
   labs(
-    title = "Does directed credit amplify the policy reaction to the output gap?",
-    subtitle = "Smooth-transition LP: additional response when directed-credit share is high",
-    x = "Horizon",
-    y = "Additional output-gap coefficient"
+    title = "Additional policy reaction to the output gap",
+    subtitle = "Smooth-transition local projection; high directed-credit state",
+    x = "Horizon (months)",
+    y = "Additional Selic response, p.p."
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 12)
 
 ggsave(
   "figures/reaction/smooth_extra_output.png",
   p_output_extra,
-  width = 9,
+  width = 8,
   height = 5,
   dpi = 300
 )
+
 
 
 # ------------------------------------------------------------
@@ -472,107 +495,51 @@ ggsave(
 )
 
 
+# p_inflation_extra <- ggplot(policy_lp, aes(x = h, y = beta_pi_extra)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(aes(ymin = pi_extra_lo, ymax = pi_extra_hi), alpha = 0.25) +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8) +
+#   labs(
+#     title = "Does directed credit amplify the policy reaction to inflation?",
+#     subtitle = "Smooth-transition LP: additional response when directed-credit share is high",
+#     x = "Horizon",
+#     y = "Additional inflation-gap coefficient"
+#   ) +
+#   theme_minimal()
+# 
+# ggsave(
+#   "figures/reaction/smooth_extra_inflation.png",
+#   p_inflation_extra,
+#   width = 9,
+#   height = 5,
+#   dpi = 300
+# )
+
 p_inflation_extra <- ggplot(policy_lp, aes(x = h, y = beta_pi_extra)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(aes(ymin = pi_extra_lo, ymax = pi_extra_hi), alpha = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = pi_extra_lo, ymax = pi_extra_hi), alpha = 0.20) +
   geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8) +
+  geom_point(size = 1.7) +
+  scale_x_continuous(breaks = 0:12) +
   labs(
-    title = "Does directed credit amplify the policy reaction to inflation?",
-    subtitle = "Smooth-transition LP: additional response when directed-credit share is high",
-    x = "Horizon",
-    y = "Additional inflation-gap coefficient"
+    title = "Additional policy reaction to the inflation gap",
+    subtitle = "Smooth-transition local projection; high directed-credit state",
+    x = "Horizon (months)",
+    y = "Additional Selic response, p.p."
   ) +
-  theme_minimal()
+  theme_minimal(base_size = 12)
 
 ggsave(
   "figures/reaction/smooth_extra_inflation.png",
   p_inflation_extra,
-  width = 9,
-  height = 5,
-  dpi = 300
-)
-
-
-
-
-
-
-# ------------------------------------------------------------
-# Publication-style plots: extra smooth-transition responses only
-# ------------------------------------------------------------
-
-dir.create("figures/reaction", showWarnings = FALSE, recursive = TRUE)
-
-theme_reaction <- theme_minimal(base_size = 12) +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 11),
-    axis.title = element_text(size = 11),
-    axis.text = element_text(size = 10),
-    plot.caption = element_text(size = 9, hjust = 0),
-    plot.margin = margin(8, 8, 8, 8)
-  )
-
-# ------------------------------------------------------------
-# Extra output-gap reaction
-# ------------------------------------------------------------
-
-p_output_extra <- ggplot(policy_lp, aes(x = h, y = beta_x_extra)) +
-  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
-  geom_ribbon(
-    aes(ymin = x_extra_lo, ymax = x_extra_hi),
-    alpha = 0.20
-  ) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.7) +
-  scale_x_continuous(breaks = 0:12) +
-  labs(
-    title = "Additional output-gap reaction in high directed-credit states",
-    subtitle = "Difference between high- and low-state smooth-transition responses",
-    x = "Horizon (months)",
-    y = "Additional Selic response, percentage points",
-    caption = "Notes: The figure reports the additional cumulative Selic response associated with a one-percentage-point higher output gap when the directed-credit share is high. Shaded areas are 95 percent block wild bootstrap confidence intervals."
-  ) +
-  theme_reaction
-
-ggsave(
-  filename = "figures/reaction/smooth_extra_output_publication.png",
-  plot = p_output_extra,
   width = 8,
   height = 5,
   dpi = 300
 )
 
 
-# ------------------------------------------------------------
-# Extra inflation-gap reaction
-# ------------------------------------------------------------
 
-p_inflation_extra <- ggplot(policy_lp, aes(x = h, y = beta_pi_extra)) +
-  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
-  geom_ribbon(
-    aes(ymin = pi_extra_lo, ymax = pi_extra_hi),
-    alpha = 0.20
-  ) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.7) +
-  scale_x_continuous(breaks = 0:12) +
-  labs(
-    title = "Additional inflation-gap reaction in high directed-credit states",
-    subtitle = "Difference between high- and low-state smooth-transition responses",
-    x = "Horizon (months)",
-    y = "Additional Selic response, percentage points",
-    caption = "Notes: The figure reports the additional cumulative Selic response associated with a one-percentage-point higher inflation gap when the directed-credit share is high. Shaded areas are 95 percent block wild bootstrap confidence intervals."
-  ) +
-  theme_reaction
 
-ggsave(
-  filename = "figures/reaction/smooth_extra_inflation_publication.png",
-  plot = p_inflation_extra,
-  width = 8,
-  height = 5,
-  dpi = 300
-)
+
+
