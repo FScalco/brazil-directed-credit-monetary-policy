@@ -518,10 +518,10 @@ p4_directed_difference <- lp_directed_rate_by_state |>
   )
 
 
-ggsave("figures/lp_free_rate_by_state.png", p1_free_rate_state, width = 8, height = 5, dpi = 300)
-ggsave("figures/lp_directed_rate_by_state.png", p2_directed_state, width = 8, height = 5, dpi = 300)
-ggsave("figures/lp_free_rate_state_diff.png", p3_free_rate_difference, width = 9, height = 5, dpi = 300)
-ggsave("figures/lp_directed_rate_state_diff.png", p4_directed_difference, width = 9, height = 5, dpi = 300)
+# ggsave("figures/lp_free_rate_by_state.png", p1_free_rate_state, width = 8, height = 5, dpi = 300)
+# ggsave("figures/lp_directed_rate_by_state.png", p2_directed_state, width = 8, height = 5, dpi = 300)
+# ggsave("figures/lp_free_rate_state_diff.png", p3_free_rate_difference, width = 9, height = 5, dpi = 300)
+# ggsave("figures/lp_directed_rate_state_diff.png", p4_directed_difference, width = 9, height = 5, dpi = 300)
 
 
 
@@ -539,64 +539,64 @@ ggsave("figures/lp_directed_rate_state_diff.png", p4_directed_difference, width 
 
 
 
-# Basic setup 
+# # Basic setup 
+# 
+# df_lp <- df |>
+#   arrange(month) |>
+#   mutate(
+#     ipca_l1 = lag(ipca, 1),
+#     industrial_output_l1 = lag(industrial_output_general, 1),
+#     exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
+#     selic_policy_rate_l1 = lag(selic_policy_rate, 1)
+#   )
+# 
+# horizons <- 0:12
+# 
+# 
+# # Simple LP for IPCA
+# lp_results_ipca <- map_dfr(horizons, function(h) {
+#   
+#   model <- lm(
+#     lead(ipca, h) ~
+#       delta_selic +
+#       ipca_l1 +
+#       industrial_output_l1 +
+#       exchange_rate_log_change_l1 + 
+#       selic_policy_rate_l1,
+#     data = df_lp
+#   )
+#   
+#   tidy(model) |>
+#     filter(term == "delta_selic") |>
+#     mutate(horizon = h)
+# })
+# 
+# lp_results_ipca
+# 
+# 
+# 
+# # Simple LP for Industrial Output
+# lp_results_industrial_output <- map_dfr(horizons, function(h) {
+#   
+#   model <- lm(
+#     lead(industrial_output_general, h) ~
+#       delta_selic +
+#       industrial_output_l1 +
+#       ipca_l1 +
+#       exchange_rate_log_change_l1 +
+#       selic_policy_rate_l1,
+#     data = df_lp
+#   )
+#   
+#   tidy(model) |>
+#     filter(term == "delta_selic") |>
+#     mutate(horizon = h)
+# })
+# 
+# lp_results_industrial_output
 
-df_lp <- df |>
-  arrange(month) |>
-  mutate(
-    ipca_l1 = lag(ipca, 1),
-    industrial_output_l1 = lag(industrial_output_general, 1),
-    exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
-    selic_policy_rate_l1 = lag(selic_policy_rate, 1)
-  )
-
-horizons <- 0:12
 
 
-# Simple LP for IPCA
-lp_results_ipca <- map_dfr(horizons, function(h) {
-  
-  model <- lm(
-    lead(ipca, h) ~
-      delta_selic +
-      ipca_l1 +
-      industrial_output_l1 +
-      exchange_rate_log_change_l1 + 
-      selic_policy_rate_l1,
-    data = df_lp
-  )
-  
-  tidy(model) |>
-    filter(term == "delta_selic") |>
-    mutate(horizon = h)
-})
-
-lp_results_ipca
-
-
-
-# Simple LP for Industrial Output
-lp_results_industrial_output <- map_dfr(horizons, function(h) {
-  
-  model <- lm(
-    lead(industrial_output_general, h) ~
-      delta_selic +
-      industrial_output_l1 +
-      ipca_l1 +
-      exchange_rate_log_change_l1 +
-      selic_policy_rate_l1,
-    data = df_lp
-  )
-  
-  tidy(model) |>
-    filter(term == "delta_selic") |>
-    mutate(horizon = h)
-})
-
-lp_results_industrial_output
-
-
-asdf
 
 
 # ##########################################################################
@@ -723,229 +723,229 @@ asdf
 # 
 
 
-##### State dependent policy reaction to inflation gap 
-
-library(tidyverse)
-library(broom)
-library(lmtest)
-library(sandwich)
-
-
-panel_file <- "../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv"
-
-df <- readr::read_csv(panel_file) |>
-  mutate(month = as.Date(month))
-
-
-
-
-df_policy <- df |>
-  arrange(month) |>
-  mutate(
-    inflation_gap = ipca_12m - inflation_target,
-    hike = as.integer(delta_selic > 0),
-    
-    inflation_gap_l1 = lag(inflation_gap, 1),
-    directed_credit_share_l1 = lag(directed_credit_share, 1),
-    selic_policy_rate_l1 = lag(selic_policy_rate, 1),
-    delta_selic_l1 = lag(delta_selic, 1),
-    industrial_output_l1 = lag(industrial_output_general, 1),
-    exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
-    
-    inflation_gap_l1_c =
-      inflation_gap_l1 - mean(inflation_gap_l1, na.rm = TRUE),
-    directed_credit_share_l1_c =
-      directed_credit_share_l1 - mean(directed_credit_share_l1, na.rm = TRUE)
-  )
-
-
-
-run_policy_lp <- function(outcome_var, data, horizons = 0:12) {
-  
-  map_dfr(horizons, function(h) {
-    
-    formula_h <- as.formula(
-      paste0(
-        "lead(", outcome_var, ", ", h, ") ~ ",
-        "inflation_gap_l1_c * directed_credit_share_l1_c + ",
-        "selic_policy_rate_l1 + ",
-        "industrial_output_l1 + ",
-        "exchange_rate_log_change_l1"
-      )
-    )
-    
-    model <- lm(formula_h, data = data)
-    
-    nw_vcov <- NeweyWest(model, lag = max(1, h + 1), prewhite = FALSE)
-    
-    tidy_nw <- tidy(
-      coeftest(model, vcov = nw_vcov)
-    )
-    
-    tidy_nw |>
-      filter(term %in% c(
-        "inflation_gap_l1_c",
-        "directed_credit_share_l1_c",
-        "inflation_gap_l1_c:directed_credit_share_l1_c"
-      )) |>
-      mutate(
-        outcome = outcome_var,
-        horizon = h
-      )
-  })
-}
-
-
-
-horizons <- 0:12
-
-lp_selic_level <- run_policy_lp(
-  outcome_var = "selic_policy_rate",
-  data = df_policy,
-  horizons = horizons
-)
-
-lp_delta_selic <- run_policy_lp(
-  outcome_var = "delta_selic",
-  data = df_policy,
-  horizons = horizons
-)
-
-lp_hike <- run_policy_lp(
-  outcome_var = "hike",
-  data = df_policy,
-  horizons = horizons
-)
-
-lp_policy_results <- bind_rows(
-  lp_selic_level,
-  lp_delta_selic,
-  lp_hike
-)
-
-lp_policy_results
-
-
-
-p5_state_dependent_policy_reaction <- lp_policy_results |>
-  filter(term == "inflation_gap_l1_c:directed_credit_share_l1_c") |>
-  mutate(
-    ci_low = estimate - 1.96 * std.error,
-    ci_high = estimate + 1.96 * std.error
-  ) |>
-  ggplot(aes(x = horizon, y = estimate, ymin = ci_low, ymax = ci_high)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(alpha = 0.2) +
-  geom_line() +
-  geom_point() +
-  facet_wrap(~ outcome, scales = "free_y") +
-  theme_minimal() +
-  labs(
-    title = "State-dependent policy reaction to inflation gap",
-    subtitle = "Interaction: inflation gap × directed-credit share",
-    x = "Horizon",
-    y = "Interaction coefficient"
-  )
-
-ggsave("figures/state_dependent_policy_reaction.png", p5_state_dependent_policy_reaction, width = 9, height = 5, dpi = 300)
-
-
+# ##### State dependent policy reaction to inflation gap 
+# 
+# library(tidyverse)
+# library(broom)
+# library(lmtest)
+# library(sandwich)
+# 
+# 
+# panel_file <- "../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv"
+# 
+# df <- readr::read_csv(panel_file) |>
+#   mutate(month = as.Date(month))
+# 
+# 
+# 
+# 
+# df_policy <- df |>
+#   arrange(month) |>
+#   mutate(
+#     inflation_gap = ipca_12m - inflation_target,
+#     hike = as.integer(delta_selic > 0),
+#     
+#     inflation_gap_l1 = lag(inflation_gap, 1),
+#     directed_credit_share_l1 = lag(directed_credit_share, 1),
+#     selic_policy_rate_l1 = lag(selic_policy_rate, 1),
+#     delta_selic_l1 = lag(delta_selic, 1),
+#     industrial_output_l1 = lag(industrial_output_general, 1),
+#     exchange_rate_log_change_l1 = lag(exchange_rate_log_change, 1),
+#     
+#     inflation_gap_l1_c =
+#       inflation_gap_l1 - mean(inflation_gap_l1, na.rm = TRUE),
+#     directed_credit_share_l1_c =
+#       directed_credit_share_l1 - mean(directed_credit_share_l1, na.rm = TRUE)
+#   )
+# 
+# 
+# 
+# run_policy_lp <- function(outcome_var, data, horizons = 0:12) {
+#   
+#   map_dfr(horizons, function(h) {
+#     
+#     formula_h <- as.formula(
+#       paste0(
+#         "lead(", outcome_var, ", ", h, ") ~ ",
+#         "inflation_gap_l1_c * directed_credit_share_l1_c + ",
+#         "selic_policy_rate_l1 + ",
+#         "industrial_output_l1 + ",
+#         "exchange_rate_log_change_l1"
+#       )
+#     )
+#     
+#     model <- lm(formula_h, data = data)
+#     
+#     nw_vcov <- NeweyWest(model, lag = max(1, h + 1), prewhite = FALSE)
+#     
+#     tidy_nw <- tidy(
+#       coeftest(model, vcov = nw_vcov)
+#     )
+#     
+#     tidy_nw |>
+#       filter(term %in% c(
+#         "inflation_gap_l1_c",
+#         "directed_credit_share_l1_c",
+#         "inflation_gap_l1_c:directed_credit_share_l1_c"
+#       )) |>
+#       mutate(
+#         outcome = outcome_var,
+#         horizon = h
+#       )
+#   })
+# }
+# 
+# 
+# 
+# horizons <- 0:12
+# 
+# lp_selic_level <- run_policy_lp(
+#   outcome_var = "selic_policy_rate",
+#   data = df_policy,
+#   horizons = horizons
+# )
+# 
+# lp_delta_selic <- run_policy_lp(
+#   outcome_var = "delta_selic",
+#   data = df_policy,
+#   horizons = horizons
+# )
+# 
+# lp_hike <- run_policy_lp(
+#   outcome_var = "hike",
+#   data = df_policy,
+#   horizons = horizons
+# )
+# 
+# lp_policy_results <- bind_rows(
+#   lp_selic_level,
+#   lp_delta_selic,
+#   lp_hike
+# )
+# 
+# lp_policy_results
+# 
+# 
+# 
+# p5_state_dependent_policy_reaction <- lp_policy_results |>
+#   filter(term == "inflation_gap_l1_c:directed_credit_share_l1_c") |>
+#   mutate(
+#     ci_low = estimate - 1.96 * std.error,
+#     ci_high = estimate + 1.96 * std.error
+#   ) |>
+#   ggplot(aes(x = horizon, y = estimate, ymin = ci_low, ymax = ci_high)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(alpha = 0.2) +
+#   geom_line() +
+#   geom_point() +
+#   facet_wrap(~ outcome, scales = "free_y") +
+#   theme_minimal() +
+#   labs(
+#     title = "State-dependent policy reaction to inflation gap",
+#     subtitle = "Interaction: inflation gap × directed-credit share",
+#     x = "Horizon",
+#     y = "Interaction coefficient"
+#   )
+# 
+# ggsave("figures/state_dependent_policy_reaction.png", p5_state_dependent_policy_reaction, width = 9, height = 5, dpi = 300)
 
 
 
 
 
 
-########################## Marginal effect of the inflation gap compared between states
 
-get_marginal_effect_lp <- function(outcome_var, data, horizons = 0:12) {
-  
-  d_low <- quantile(data$directed_credit_share_l1_c, 0.25, na.rm = TRUE)
-  d_high <- quantile(data$directed_credit_share_l1_c, 0.75, na.rm = TRUE)
-  
-  map_dfr(horizons, function(h) {
-    
-    formula_h <- as.formula(
-      paste0(
-        "lead(", outcome_var, ", ", h, ") ~ ",
-        "inflation_gap_l1_c * directed_credit_share_l1_c + ",
-        "selic_policy_rate_l1 + ",
-        "industrial_output_l1 + ",
-        "exchange_rate_log_change_l1"
-      )
-    )
-    
-    model <- lm(formula_h, data = data)
-    nw_vcov <- NeweyWest(model, lag = max(1, h + 1), prewhite = FALSE)
-    
-    b <- coef(model)
-    
-    beta_gap <- b["inflation_gap_l1_c"]
-    beta_int <- b["inflation_gap_l1_c:directed_credit_share_l1_c"]
-    
-    v <- nw_vcov
-    
-    calc_me <- function(d_value, label) {
-      estimate <- beta_gap + beta_int * d_value
-      
-      se <- sqrt(
-        v["inflation_gap_l1_c", "inflation_gap_l1_c"] +
-          d_value^2 * v["inflation_gap_l1_c:directed_credit_share_l1_c",
-                        "inflation_gap_l1_c:directed_credit_share_l1_c"] +
-          2 * d_value * v["inflation_gap_l1_c",
-                          "inflation_gap_l1_c:directed_credit_share_l1_c"]
-      )
-      
-      tibble(
-        outcome = outcome_var,
-        horizon = h,
-        directed_share_regime = label,
-        directed_share_value = d_value,
-        estimate = estimate,
-        std.error = se,
-        ci_low = estimate - 1.96 * se,
-        ci_high = estimate + 1.96 * se
-      )
-    }
-    
-    bind_rows(
-      calc_me(d_low, "Low directed-credit share"),
-      calc_me(d_high, "High directed-credit share")
-    )
-  })
-}
 
-lp_me_policy <- bind_rows(
-  get_marginal_effect_lp("delta_selic", df_policy, horizons = 0:12),
-  get_marginal_effect_lp("hike", df_policy, horizons = 0:12),
-  get_marginal_effect_lp("selic_policy_rate", df_policy, horizons = 0:12)
-)
-
-p6 <- ggplot(
-  lp_me_policy,
-  aes(
-    x = horizon,
-    y = estimate,
-    ymin = ci_low,
-    ymax = ci_high,
-    group = directed_share_regime
-  )
-) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_ribbon(alpha = 0.15) +
-  geom_line(aes(linetype = directed_share_regime)) +
-  geom_point(aes(shape = directed_share_regime)) +
-  facet_wrap(~ outcome, scales = "free_y") +
-  theme_minimal() +
-  labs(
-    title = "Marginal effect of inflation gap on policy reaction",
-    subtitle = "Low vs. high directed-credit-share regimes",
-    x = "Horizon",
-    y = "Marginal effect of inflation gap",
-    linetype = "Directed-credit share",
-    shape = "Directed-credit share"
-  )
-
-ggsave("figures/marginal_effect.png", p6, width = 9, height = 5, dpi = 300)
+# ########################## Marginal effect of the inflation gap compared between states
+# 
+# get_marginal_effect_lp <- function(outcome_var, data, horizons = 0:12) {
+#   
+#   d_low <- quantile(data$directed_credit_share_l1_c, 0.25, na.rm = TRUE)
+#   d_high <- quantile(data$directed_credit_share_l1_c, 0.75, na.rm = TRUE)
+#   
+#   map_dfr(horizons, function(h) {
+#     
+#     formula_h <- as.formula(
+#       paste0(
+#         "lead(", outcome_var, ", ", h, ") ~ ",
+#         "inflation_gap_l1_c * directed_credit_share_l1_c + ",
+#         "selic_policy_rate_l1 + ",
+#         "industrial_output_l1 + ",
+#         "exchange_rate_log_change_l1"
+#       )
+#     )
+#     
+#     model <- lm(formula_h, data = data)
+#     nw_vcov <- NeweyWest(model, lag = max(1, h + 1), prewhite = FALSE)
+#     
+#     b <- coef(model)
+#     
+#     beta_gap <- b["inflation_gap_l1_c"]
+#     beta_int <- b["inflation_gap_l1_c:directed_credit_share_l1_c"]
+#     
+#     v <- nw_vcov
+#     
+#     calc_me <- function(d_value, label) {
+#       estimate <- beta_gap + beta_int * d_value
+#       
+#       se <- sqrt(
+#         v["inflation_gap_l1_c", "inflation_gap_l1_c"] +
+#           d_value^2 * v["inflation_gap_l1_c:directed_credit_share_l1_c",
+#                         "inflation_gap_l1_c:directed_credit_share_l1_c"] +
+#           2 * d_value * v["inflation_gap_l1_c",
+#                           "inflation_gap_l1_c:directed_credit_share_l1_c"]
+#       )
+#       
+#       tibble(
+#         outcome = outcome_var,
+#         horizon = h,
+#         directed_share_regime = label,
+#         directed_share_value = d_value,
+#         estimate = estimate,
+#         std.error = se,
+#         ci_low = estimate - 1.96 * se,
+#         ci_high = estimate + 1.96 * se
+#       )
+#     }
+#     
+#     bind_rows(
+#       calc_me(d_low, "Low directed-credit share"),
+#       calc_me(d_high, "High directed-credit share")
+#     )
+#   })
+# }
+# 
+# lp_me_policy <- bind_rows(
+#   get_marginal_effect_lp("delta_selic", df_policy, horizons = 0:12),
+#   get_marginal_effect_lp("hike", df_policy, horizons = 0:12),
+#   get_marginal_effect_lp("selic_policy_rate", df_policy, horizons = 0:12)
+# )
+# 
+# p6 <- ggplot(
+#   lp_me_policy,
+#   aes(
+#     x = horizon,
+#     y = estimate,
+#     ymin = ci_low,
+#     ymax = ci_high,
+#     group = directed_share_regime
+#   )
+# ) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(alpha = 0.15) +
+#   geom_line(aes(linetype = directed_share_regime)) +
+#   geom_point(aes(shape = directed_share_regime)) +
+#   facet_wrap(~ outcome, scales = "free_y") +
+#   theme_minimal() +
+#   labs(
+#     title = "Marginal effect of inflation gap on policy reaction",
+#     subtitle = "Low vs. high directed-credit-share regimes",
+#     x = "Horizon",
+#     y = "Marginal effect of inflation gap",
+#     linetype = "Directed-credit share",
+#     shape = "Directed-credit share"
+#   )
+# 
+# ggsave("figures/marginal_effect.png", p6, width = 9, height = 5, dpi = 300)
 
 
