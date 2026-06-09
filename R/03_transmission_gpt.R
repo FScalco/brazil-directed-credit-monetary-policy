@@ -756,7 +756,7 @@ transmission_total_rate <- estimate_smooth_transmission_lp(
   control_vars = c(),
   current_control_vars = c("credit_gdp_l1_dm"),
   horizons = 0:12,
-  n_lags = 3,
+  n_lags = 6,
   gamma = 1.5,
   state_threshold_quantile = 0.75,
   B_boot = 999,
@@ -782,7 +782,7 @@ transmission_directed_growth <- estimate_smooth_transmission_lp(
   current_control_vars = c("credit_gdp_l1_dm"),
   
   horizons = 0:12,
-  n_lags = 3,
+  n_lags = 6,
   gamma = 1.5,
   state_threshold_quantile = 0.75,
   B_boot = 999,
@@ -1044,129 +1044,85 @@ p_directed_rate_extra <- plot_transmission_extra(
 
 
 
+
 # ============================================================
-# Degrees-of-freedom and parsimony audit for transmission LPs
+# 2x2 degrees-of-freedom audit for transmission LPs
 # ============================================================
 #
 # Purpose:
-# Check whether the smooth-transition LP is too heavy relative to
-# the available sample size.
+# Decide between:
+#   - 3 vs 6 lags
+#   - with vs without credit_gdp_l1_dm
 #
-# This does NOT test causality.
-# It checks whether the model is using too many parameters for the
-# number of usable observations.
+# The audit mirrors the main transmission specification:
+#   depvar_h ~ delta_selic + shock_high_extra + F_high
+#              + optional credit_gdp_l1_dm
+#              + lags of outcome
+#              + lags of Selic level
 #
-# Main diagnostics:
-#
-#   n_obs:
-#     Number of usable observations at each horizon.
-#
-#   n_parameters:
-#     Number of estimated parameters, including the intercept.
-#
-#   residual_df:
-#     Remaining degrees of freedom after estimating the model.
-#
-#   obs_per_parameter:
-#     Number of observations per estimated parameter.
-#
-#   mean_leverage:
-#     Average leverage. In OLS, this is approximately K / N.
-#     Higher values mean the model is using up more of the sample.
-#
-#   parsimony_flag:
-#     Simple warning label.
+# By default, this does NOT include lags of delta_selic,
+# because your main estimator currently does not include them.
 # ============================================================
-
 
 library(tidyverse)
 
+# ------------------------------------------------------------
+# Outcomes to audit
+# ------------------------------------------------------------
 
-# ------------------------------------------------------------
-# Helper: create lags
-# ------------------------------------------------------------
- 
-make_lags <- function(data, vars, n_lags = 6) {
-  out <- data
-  
-  vars <- vars[vars %in% names(out)]
-  
-  for (v in vars) {
-    for (l in 1:n_lags) {
-      out <- out %>%
-        mutate("{v}_lag{l}" := lag(.data[[v]], l))
-    }
-  }
-  
-  out
-}
+transmission_outcomes <- tribble(
+  ~outcome_label,                  ~outcome_var,                                      ~outcome_type,
+  "Total credit growth",           "growth_credit_total_stock",                       "growth_rate",
+  "Free credit growth",            "growth_free_credit_stock",                        "growth_rate",
+  "Directed credit growth",        "growth_directed_credit_stock",                    "growth_rate",
+  "Total credit interest rate",    "interest_rate_new_operations_total",              "level",
+  "Free credit interest rate",     "interest_rate_free_new_operations_total",         "level",
+  "Directed credit interest rate", "interest_rate_directed_new_operations_total",     "level"
+)
 
 
 # ------------------------------------------------------------
-# Helper: construct LP dependent variable
+# Helper: one specification, one outcome
 # ------------------------------------------------------------
 
-make_lp_depvar <- function(x, h, outcome_type = c("growth_rate", "level", "log_level")) {
+audit_transmission_dof <- function(data,
+                                   outcome_var,
+                                   outcome_type = c("growth_rate", "level", "log_level"),
+                                   shock_var = "delta_selic",
+                                   state_var = "directed_credit_share",
+                                   horizons = 0:12,
+                                   n_lags = 6,
+                                   include_credit_gdp = FALSE,
+                                   include_shock_lags = FALSE,
+                                   gamma = 1.5,
+                                   state_threshold_quantile = 0.75) {
   
   outcome_type <- match.arg(outcome_type)
   
-  if (outcome_type == "growth_rate") {
-    future_growth_matrix <- sapply(0:h, function(j) dplyr::lead(x, j))
-    depvar <- rowSums(future_growth_matrix, na.rm = FALSE)
+  current_control_vars <- if (include_credit_gdp) {
+    "credit_gdp_l1_dm"
+  } else {
+    character(0)
   }
   
-  if (outcome_type == "level") {
-    depvar <- dplyr::lead(x, h) - dplyr::lag(x, 1)
-  }
-  
-  if (outcome_type == "log_level") {
-    depvar <- 100 * (dplyr::lead(x, h) - dplyr::lag(x, 1))
-  }
-  
-  depvar
-}
-
-
-# ------------------------------------------------------------
-# Main audit function
-# ------------------------------------------------------------
-
-audit_transmission_parsimony <- function(data,
-                                         outcome_var,
-                                         outcome_type = c("growth_rate", "level", "log_level"),
-                                         shock_var = "delta_selic",
-                                         state_var = "directed_credit_share",
-                                         control_vars = NULL,
-                                         current_control_vars = NULL,
-                                         horizons = 0:12,
-                                         n_lags = 6,
-                                         gamma = 1.5,
-                                         state_threshold_quantile = 0.75) {
-  
-  outcome_type <- match.arg(outcome_type)
-  
-  # Keep only variables that actually exist.
-  control_vars <- control_vars[control_vars %in% names(data)]
-  current_control_vars <- current_control_vars[current_control_vars %in% names(data)]
-  
-  # These variables will receive lags.
-  lag_vars <- unique(c(
+  required_vars <- c(
+    "month",
     outcome_var,
     shock_var,
+    state_var,
     "selic_policy_rate",
-    control_vars
-  ))
+    current_control_vars
+  )
   
-  lag_vars <- lag_vars[lag_vars %in% names(data)]
-  
-  # ----------------------------------------------------------
-  # Create smooth high-directed-credit state
-  # ----------------------------------------------------------
+  missing_vars <- setdiff(required_vars, names(data))
+  if (length(missing_vars) > 0) {
+    stop("Missing variables: ", paste(missing_vars, collapse = ", "))
+  }
   
   data_ordered <- data %>%
     arrange(month)
   
-  state_lag_raw <- lag(data_ordered[[state_var]], 1)
+  state_lag_raw <- dplyr::lag(data_ordered[[state_var]], 1)
   state_sd <- sd(state_lag_raw, na.rm = TRUE)
   
   state_center <- as.numeric(
@@ -1177,6 +1133,17 @@ audit_transmission_parsimony <- function(data,
     )
   )
   
+  # Match the main LP specification.
+  # Baseline: lag outcome and Selic level.
+  # Optional: lag delta_selic only if you explicitly set include_shock_lags = TRUE.
+  lag_vars <- c(
+    outcome_var,
+    "selic_policy_rate",
+    if (include_shock_lags) shock_var
+  )
+  
+  lag_vars <- lag_vars[lag_vars %in% names(data_ordered)]
+  
   data_lp <- data_ordered %>%
     mutate(
       state_lag = lag(.data[[state_var]], 1),
@@ -1186,29 +1153,19 @@ audit_transmission_parsimony <- function(data,
     ) %>%
     make_lags(lag_vars, n_lags = n_lags)
   
-  # Names of lagged controls.
   lag_control_names <- unlist(
     lapply(lag_vars, function(v) paste0(v, "_lag", 1:n_lags))
   )
   
   lag_control_names <- lag_control_names[lag_control_names %in% names(data_lp)]
   
-  audit_results <- list()
-  
-  # ----------------------------------------------------------
-  # Horizon loop
-  # ----------------------------------------------------------
-  
-  for (h in horizons) {
+  map_dfr(horizons, function(h) {
     
     depvar_h <- make_lp_depvar(
       x = data_lp[[outcome_var]],
       h = h,
       outcome_type = outcome_type
     )
-    
-    data_h <- data_lp %>%
-      mutate(depvar = depvar_h)
     
     rhs_vars <- c(
       shock_var,
@@ -1218,30 +1175,23 @@ audit_transmission_parsimony <- function(data,
       lag_control_names
     )
     
-    rhs_vars <- rhs_vars[rhs_vars %in% names(data_h)]
+    rhs_vars <- rhs_vars[rhs_vars %in% names(data_lp)]
     
-    reg_data <- data_h %>%
+    reg_data <- data_lp %>%
+      mutate(depvar = depvar_h) %>%
       select(month, depvar, all_of(rhs_vars)) %>%
       drop_na()
     
-    # If no usable observations remain, store missing diagnostics.
     if (nrow(reg_data) == 0) {
-      audit_results[[as.character(h)]] <- tibble(
-        outcome_var = outcome_var,
-        outcome_type = outcome_type,
+      return(tibble(
         h = h,
         n_lags = n_lags,
+        include_credit_gdp = include_credit_gdp,
         n_obs = 0,
         n_parameters = NA_real_,
-        model_rank = NA_real_,
         residual_df = NA_real_,
-        obs_per_parameter = NA_real_,
-        mean_leverage = NA_real_,
-        max_leverage = NA_real_,
-        parsimony_flag = "No usable observations"
-      )
-      
-      next
+        obs_per_parameter = NA_real_
+      ))
     }
     
     fml <- as.formula(
@@ -1249,203 +1199,240 @@ audit_transmission_parsimony <- function(data,
     )
     
     model <- lm(fml, data = reg_data)
-    
-    # Model matrix gives the actual number of columns including the intercept.
     X <- model.matrix(model)
     
     n_obs <- nrow(X)
-    n_parameters <- ncol(X)
     model_rank <- qr(X)$rank
-    residual_df <- df.residual(model)
-    obs_per_parameter <- n_obs / model_rank
     
-    # Leverage diagnostics.
-    leverages <- hatvalues(model)
-    mean_leverage <- mean(leverages, na.rm = TRUE)
-    max_leverage <- max(leverages, na.rm = TRUE)
-    
-    parsimony_flag <- case_when(
-      obs_per_parameter < 5 ~ "Too heavy",
-      obs_per_parameter < 10 ~ "Fragile",
-      TRUE ~ "Comfortable"
-    )
-    
-    audit_results[[as.character(h)]] <- tibble(
-      outcome_var = outcome_var,
-      outcome_type = outcome_type,
+    tibble(
       h = h,
       n_lags = n_lags,
+      include_credit_gdp = include_credit_gdp,
       n_obs = n_obs,
-      n_parameters = n_parameters,
-      model_rank = model_rank,
-      residual_df = residual_df,
-      obs_per_parameter = obs_per_parameter,
-      mean_leverage = mean_leverage,
-      max_leverage = max_leverage,
-      parsimony_flag = parsimony_flag
+      n_parameters = model_rank,
+      residual_df = df.residual(model),
+      obs_per_parameter = n_obs / model_rank
     )
-  }
-  
-  bind_rows(audit_results)
+  })
 }
 
 
+# ------------------------------------------------------------
+# Run the 2x2 grid for all transmission outcomes
+# ------------------------------------------------------------
 
-
-audit_free_rate_lean <- audit_transmission_parsimony(
-  data = df_no_covid,
-  outcome_var = "interest_rate_free_new_operations_total",
-  outcome_type = "level",
-  shock_var = "delta_selic",
-  state_var = "directed_credit_share",
-  
-  # Lean specification:
-  # no output gap, no inflation gap, no external macro controls.
-  control_vars = c(),
-  current_control_vars = c("credit_gdp_l1_dm"),
-  
-  horizons = 0:12,
-  n_lags = 6,
-  gamma = 1.5,
-  state_threshold_quantile = 0.75
+spec_grid <- expand_grid(
+  transmission_outcomes,
+  n_lags = c(3, 6),
+  include_credit_gdp = c(FALSE, TRUE)
 )
 
-audit_free_rate_lean
-
-
-audit_free_rate_macro <- audit_transmission_parsimony(
-  data = df_no_covid,
-  outcome_var = "interest_rate_free_new_operations_total",
-  outcome_type = "level",
-  shock_var = "delta_selic",
-  state_var = "directed_credit_share",
-  
-  # Richer specification:
-  # adds macro controls as lagged variables.
-  control_vars = c(
-    "ibc_output_gap",
-    "focus_inflation_gap",
-    "growth_icbr_commodities",
-    "exchange_rate_log_change"
+dof_by_horizon <- pmap_dfr(
+  list(
+    spec_grid$outcome_label,
+    spec_grid$outcome_var,
+    spec_grid$outcome_type,
+    spec_grid$n_lags,
+    spec_grid$include_credit_gdp
   ),
-  
-  current_control_vars = c(),
-  
-  horizons = 0:12,
-  n_lags = 6,
-  gamma = 1.5,
-  state_threshold_quantile = 0.75
+  function(outcome_label, outcome_var, outcome_type, n_lags, include_credit_gdp) {
+    
+    audit_transmission_dof(
+      data = df_no_covid,
+      outcome_var = outcome_var,
+      outcome_type = outcome_type,
+      shock_var = "delta_selic",
+      state_var = "directed_credit_share",
+      horizons = 0:12,
+      n_lags = n_lags,
+      include_credit_gdp = include_credit_gdp,
+      include_shock_lags = FALSE,
+      gamma = 1.5,
+      state_threshold_quantile = 0.75
+    ) %>%
+      mutate(
+        outcome_label = outcome_label,
+        outcome_var = outcome_var,
+        outcome_type = outcome_type,
+        credit_gdp_control = if_else(
+          include_credit_gdp,
+          "Yes",
+          "No"
+        ),
+        specification = paste0(
+          n_lags,
+          " lags, credit/GDP control: ",
+          credit_gdp_control
+        )
+      )
+  }
 )
 
-audit_free_rate_macro
 
-parsimony_comparison <- bind_rows(
-  audit_free_rate_lean %>%
-    mutate(specification = "Lean"),
-  
-  audit_free_rate_macro %>%
-    mutate(specification = "Macro controls")
-) %>%
-  select(
-    specification,
-    h,
+# ------------------------------------------------------------
+# Paper-style table: worst case over horizons 0-12
+# ------------------------------------------------------------
+
+dof_paper_table <- dof_by_horizon %>%
+  group_by(
+    outcome_label,
+    outcome_type,
     n_lags,
-    n_obs,
-    n_parameters,
-    residual_df,
-    obs_per_parameter,
-    mean_leverage,
-    max_leverage,
-    parsimony_flag
-  )
-
-parsimony_comparison
-
-
-parsimony_summary <- parsimony_comparison %>%
-  group_by(specification) %>%
+    credit_gdp_control,
+    specification
+  ) %>%
   summarise(
     min_n_obs = min(n_obs, na.rm = TRUE),
-    max_n_parameters = max(n_parameters, na.rm = TRUE),
+    max_parameters = max(n_parameters, na.rm = TRUE),
     min_residual_df = min(residual_df, na.rm = TRUE),
     min_obs_per_parameter = min(obs_per_parameter, na.rm = TRUE),
-    max_mean_leverage = max(mean_leverage, na.rm = TRUE),
-    max_leverage = max(max_leverage, na.rm = TRUE),
-    worst_flag = case_when(
-      any(parsimony_flag == "Too heavy") ~ "Too heavy",
-      any(parsimony_flag == "Fragile") ~ "Fragile",
-      TRUE ~ "Comfortable"
+    binding_horizon = h[which.min(obs_per_parameter)][1],
+    .groups = "drop"
+  ) %>%
+  mutate(
+    dof_status = case_when(
+      min_obs_per_parameter >= 10 & min_residual_df >= 30 ~ "Comfortable",
+      min_obs_per_parameter >= 5  & min_residual_df >= 20 ~ "Usable but tight",
+      TRUE ~ "Too heavy"
+    )
+  ) %>%
+  arrange(outcome_type, outcome_label, n_lags, credit_gdp_control)
+
+dof_paper_table
+
+
+# ------------------------------------------------------------
+# Specification-level summary:
+# the binding case across all outcomes
+# ------------------------------------------------------------
+
+dof_spec_choice_table <- dof_paper_table %>%
+  group_by(n_lags, credit_gdp_control, specification) %>%
+  summarise(
+    worst_min_n_obs = min(min_n_obs, na.rm = TRUE),
+    worst_max_parameters = max(max_parameters, na.rm = TRUE),
+    worst_min_residual_df = min(min_residual_df, na.rm = TRUE),
+    worst_min_obs_per_parameter = min(min_obs_per_parameter, na.rm = TRUE),
+    binding_outcome = outcome_label[which.min(min_obs_per_parameter)][1],
+    binding_horizon = binding_horizon[which.min(min_obs_per_parameter)][1],
+    overall_status = case_when(
+      worst_min_obs_per_parameter >= 10 & worst_min_residual_df >= 30 ~ "Comfortable",
+      worst_min_obs_per_parameter >= 5  & worst_min_residual_df >= 20 ~ "Usable but tight",
+      TRUE ~ "Too heavy"
     ),
     .groups = "drop"
-  )
+  ) %>%
+  arrange(desc(n_lags), credit_gdp_control)
 
-parsimony_summary
+dof_spec_choice_table
 
 
-
-# ============================================================
-# Lag-length parsimony comparison
-# ============================================================
+# ------------------------------------------------------------
+# Mechanical recommendation based only on degrees of freedom
+# ------------------------------------------------------------
 #
-# This compares 3, 6, 9, and 12 lags.
-# For your interest-rate sample, this will show very clearly whether
-# 6 or 12 lags are too expensive in degrees-of-freedom terms.
+# Rule:
+# 1. Prefer 6 lags if the worst-case specification is comfortable.
+# 2. Otherwise use 3 lags.
+# 3. Include credit_gdp_l1_dm only if it does not push the chosen lag
+#    specification into a worse degrees-of-freedom category.
+#
+# This is not an economic rule. It is only the sample-size rule.
 
-lag_grid <- c(3, 6, 9, 12)
-
-audit_lag_grid_free_rate <- map_dfr(lag_grid, function(L) {
-  
-  audit_transmission_parsimony(
-    data = df_no_covid,
-    outcome_var = "interest_rate_free_new_operations_total",
-    outcome_type = "level",
-    shock_var = "delta_selic",
-    state_var = "directed_credit_share",
-    control_vars = c(),
-    current_control_vars = c("credit_gdp_l1_dm"),
-    horizons = 0:12,
-    n_lags = L,
-    gamma = 1.5,
-    state_threshold_quantile = 0.75
-  )
-  
-}) %>%
-  mutate(specification = paste0(n_lags, " lags, lean"))
-
-
-lag_grid_summary_free_rate <- audit_lag_grid_free_rate %>%
-  group_by(specification, n_lags) %>%
+chosen_lag <- dof_spec_choice_table %>%
+  group_by(n_lags) %>%
   summarise(
-    min_n_obs = min(n_obs, na.rm = TRUE),
-    max_n_parameters = max(n_parameters, na.rm = TRUE),
-    min_residual_df = min(residual_df, na.rm = TRUE),
-    min_obs_per_parameter = min(obs_per_parameter, na.rm = TRUE),
-    max_leverage = max(max_leverage, na.rm = TRUE),
-    worst_flag = case_when(
-      any(parsimony_flag == "Too heavy") ~ "Too heavy",
-      any(parsimony_flag == "Fragile") ~ "Fragile",
-      TRUE ~ "Comfortable"
+    best_status = min(
+      case_when(
+        overall_status == "Comfortable" ~ 1,
+        overall_status == "Usable but tight" ~ 2,
+        overall_status == "Too heavy" ~ 3
+      )
     ),
+    worst_min_obs_per_parameter = max(worst_min_obs_per_parameter),
+    worst_min_residual_df = max(worst_min_residual_df),
     .groups = "drop"
+  ) %>%
+  mutate(
+    pass_main_rule = best_status == 1
+  ) %>%
+  arrange(desc(pass_main_rule), desc(n_lags)) %>%
+  slice(1) %>%
+  pull(n_lags)
+
+credit_choice_table <- dof_spec_choice_table %>%
+  filter(n_lags == chosen_lag) %>%
+  mutate(
+    status_rank = case_when(
+      overall_status == "Comfortable" ~ 1,
+      overall_status == "Usable but tight" ~ 2,
+      overall_status == "Too heavy" ~ 3
+    )
+  ) %>%
+  arrange(status_rank, credit_gdp_control)
+
+chosen_credit_control <- credit_choice_table %>%
+  slice(1) %>%
+  pull(credit_gdp_control)
+
+recommended_spec <- tibble(
+  recommended_n_lags = chosen_lag,
+  recommended_credit_gdp_control = chosen_credit_control
+)
+
+recommended_spec
+
+
+# ------------------------------------------------------------
+# Save tables
+# ------------------------------------------------------------
+
+dir.create("tables/transmission", showWarnings = FALSE, recursive = TRUE)
+
+write_csv(
+  dof_by_horizon,
+  "tables/transmission/dof_by_horizon_2x2.csv"
+)
+
+write_csv(
+  dof_paper_table,
+  "tables/transmission/dof_paper_table_2x2.csv"
+)
+
+write_csv(
+  dof_spec_choice_table,
+  "tables/transmission/dof_spec_choice_table_2x2.csv"
+)
+
+
+# ------------------------------------------------------------
+# Optional LaTeX table for the paper
+# ------------------------------------------------------------
+
+dof_latex_table <- dof_paper_table %>%
+  select(
+    Outcome = outcome_label,
+    Lags = n_lags,
+    `Credit/GDP control` = credit_gdp_control,
+    `Min. N` = min_n_obs,
+    `Max. parameters` = max_parameters,
+    `Min. residual df` = min_residual_df,
+    `Min. obs./parameter` = min_obs_per_parameter,
+    `Binding horizon` = binding_horizon,
+    Status = dof_status
   )
 
-lag_grid_summary_free_rate
-
-
-
-ggplot(audit_lag_grid_free_rate,
-       aes(x = h, y = obs_per_parameter, group = factor(n_lags))) +
-  geom_hline(yintercept = 5, linetype = "dashed", linewidth = 0.4) +
-  geom_hline(yintercept = 10, linetype = "dotted", linewidth = 0.4) +
-  geom_line(aes(linetype = factor(n_lags)), linewidth = 0.9) +
-  geom_point(aes(shape = factor(n_lags)), size = 1.7) +
-  scale_x_continuous(breaks = 0:12) +
-  labs(
-    title = "Degrees-of-freedom audit for the transmission model",
-    subtitle = "Observations per estimated parameter across lag choices",
-    x = "Horizon (months)",
-    y = "Observations per parameter",
-    linetype = "Number of lags",
-    shape = "Number of lags"
-  ) +
-  theme_minimal(base_size = 12)
+if (requireNamespace("knitr", quietly = TRUE)) {
+  latex_out <- knitr::kable(
+    dof_latex_table,
+    format = "latex",
+    booktabs = TRUE,
+    digits = 2,
+    caption = "Degrees-of-freedom audit for transmission local projections"
+  )
+  
+  writeLines(
+    latex_out,
+    "tables/transmission/dof_paper_table_2x2.tex"
+  )
+}
