@@ -52,6 +52,21 @@ df <- read_csv("../data/processed/brazil_credit_monthly_panel_with_mp_shocks.csv
   arrange(month)
 
 
+
+
+
+
+###### Adding this optional control of credit to GDP ratio 
+
+df <- df %>%
+  arrange(month) %>%
+  mutate(
+    credit_gdp_l1 = lag(credit_total_stock_to_gdp, 1),
+    credit_gdp_l1_dm = credit_gdp_l1 - mean(credit_gdp_l1, na.rm = TRUE)
+  )
+
+
+
 # ------------------------------------------------------------
 # Optional: remove the acute COVID period
 # ------------------------------------------------------------
@@ -315,7 +330,7 @@ estimate_smooth_transmission_lp <- function(data = df_no_covid,
   
   lag_vars <- unique(c(
     outcome_var,
-    shock_var,
+    # shock_var,
     "selic_policy_rate",
     control_vars
   ))
@@ -622,6 +637,7 @@ transmission_free_growth <- estimate_smooth_transmission_lp(
   
   current_control_vars = c(
     # "growth_icbr_commodities"
+    "credit_gdp_l1_dm"
   ),
   
   horizons = 0:12,
@@ -651,6 +667,7 @@ transmission_total_growth <- estimate_smooth_transmission_lp(
   ),
   current_control_vars = c(
     # "growth_icbr_commodities"
+    "credit_gdp_l1_dm"
   ),
   horizons = 0:12,
   n_lags = 6,
@@ -686,6 +703,7 @@ transmission_free_rate <- estimate_smooth_transmission_lp(
   ),
   current_control_vars = c(
     # "growth_icbr_commodities"
+    "credit_gdp_l1_dm"
   ),
   horizons = 0:12,
   n_lags = 6,
@@ -714,6 +732,7 @@ transmission_directed_rate <- estimate_smooth_transmission_lp(
   ),
   current_control_vars = c(
     # "growth_icbr_commodities"
+    "credit_gdp_l1_dm"
   ),
   horizons = 0:12,
   n_lags = 6,
@@ -724,8 +743,51 @@ transmission_directed_rate <- estimate_smooth_transmission_lp(
 )
 
 
+# ============================================================
+# Example 5: pass-through to total-credit interest rates
+# ============================================================
+
+transmission_total_rate <- estimate_smooth_transmission_lp(
+  data = df_no_covid,
+  outcome_var = "interest_rate_new_operations_total",
+  outcome_type = "level",
+  shock_var = "delta_selic",
+  state_var = "directed_credit_share",
+  control_vars = c(),
+  current_control_vars = c("credit_gdp_l1_dm"),
+  horizons = 0:12,
+  n_lags = 3,
+  gamma = 1.5,
+  state_threshold_quantile = 0.75,
+  B_boot = 999,
+  block_length = 6
+)
 
 
+
+
+# ============================================================
+# Example 6: pass-through to directed-credit growth
+# ============================================================
+
+transmission_directed_growth <- estimate_smooth_transmission_lp(
+  data = df_no_covid,
+  outcome_var = "growth_directed_credit_stock",
+  outcome_type = "growth_rate",
+  shock_var = "delta_selic",
+  state_var = "directed_credit_share",
+  
+  # Lean specification, consistent with the parsimony discussion
+  control_vars = c(),
+  current_control_vars = c("credit_gdp_l1_dm"),
+  
+  horizons = 0:12,
+  n_lags = 3,
+  gamma = 1.5,
+  state_threshold_quantile = 0.75,
+  B_boot = 999,
+  block_length = 6
+)
 
 # ============================================================
 # Plot helper: baseline vs high-directed-credit response
@@ -878,8 +940,107 @@ p_free_rate_extra <- plot_transmission_extra(
 )
 
 
+# ------------------------------------------------------------
+# Total credit growth: baseline vs high directed-credit state
+# ------------------------------------------------------------
+
+p_total_growth_levels <- plot_transmission_baseline_vs_high(
+  lp_results = transmission_total_growth,
+  plot_title = "Monetary policy pass-through to total credit growth",
+  plot_subtitle = "Smooth-transition local projection; baseline and high directed-credit state",
+  y_label = "Cumulative credit-growth response",
+  output_file = "figures/transmission/total_credit_growth_baseline_vs_high.png"
+)
 
 
+# ------------------------------------------------------------
+# Total credit growth: additional high-state response
+# ------------------------------------------------------------
+
+p_total_growth_extra <- plot_transmission_extra(
+  lp_results = transmission_total_growth,
+  plot_title = "Additional response of total credit growth",
+  plot_subtitle = "Smooth-transition local projection; high directed-credit state",
+  y_label = "Additional cumulative growth response",
+  output_file = "figures/transmission/total_credit_growth_extra_high_state.png"
+)
+
+# ------------------------------------------------------------
+# Total credit interest rate: baseline vs high directed-credit state
+# ------------------------------------------------------------
+
+p_total_rate_levels <- plot_transmission_baseline_vs_high(
+  lp_results = transmission_total_rate,
+  plot_title = "Monetary policy pass-through to total credit interest rates",
+  plot_subtitle = "Smooth-transition local projection; baseline and high directed-credit state",
+  y_label = "Cumulative interest-rate response, p.p.",
+  output_file = "figures/transmission/total_credit_rate_baseline_vs_high.png"
+)
+
+
+# ------------------------------------------------------------
+# Total credit interest rate: additional high-state response
+# ------------------------------------------------------------
+
+p_total_rate_extra <- plot_transmission_extra(
+  lp_results = transmission_total_rate,
+  plot_title = "Additional response of total credit interest rates",
+  plot_subtitle = "Smooth-transition local projection; high directed-credit state",
+  y_label = "Additional interest-rate response, p.p.",
+  output_file = "figures/transmission/total_credit_rate_extra_high_state.png"
+)
+
+
+# ------------------------------------------------------------
+# Directed credit growth: baseline vs high directed-credit state
+# ------------------------------------------------------------
+
+p_directed_growth_levels <- plot_transmission_baseline_vs_high(
+  lp_results = transmission_directed_growth,
+  plot_title = "Monetary policy pass-through to directed-credit growth",
+  plot_subtitle = "Smooth-transition local projection; baseline and high directed-credit state",
+  y_label = "Cumulative credit-growth response",
+  output_file = "figures/transmission/directed_credit_growth_baseline_vs_high.png"
+)
+
+
+# ------------------------------------------------------------
+# Directed credit growth: additional high-state response
+# ------------------------------------------------------------
+
+p_directed_growth_extra <- plot_transmission_extra(
+  lp_results = transmission_directed_growth,
+  plot_title = "Additional response of directed-credit growth",
+  plot_subtitle = "Smooth-transition local projection; high directed-credit state",
+  y_label = "Additional cumulative growth response",
+  output_file = "figures/transmission/directed_credit_growth_extra_high_state.png"
+)
+
+
+# ------------------------------------------------------------
+# Directed credit interest rate: baseline vs high directed-credit state
+# ------------------------------------------------------------
+
+p_directed_rate_levels <- plot_transmission_baseline_vs_high(
+  lp_results = transmission_directed_rate,
+  plot_title = "Monetary policy pass-through to directed-credit interest rates",
+  plot_subtitle = "Smooth-transition local projection; baseline and high directed-credit state",
+  y_label = "Cumulative interest-rate response, p.p.",
+  output_file = "figures/transmission/directed_credit_rate_baseline_vs_high.png"
+)
+
+
+# ------------------------------------------------------------
+# Directed credit interest rate: additional high-state response
+# ------------------------------------------------------------
+
+p_directed_rate_extra <- plot_transmission_extra(
+  lp_results = transmission_directed_rate,
+  plot_title = "Additional response of directed-credit interest rates",
+  plot_subtitle = "Smooth-transition local projection; high directed-credit state",
+  y_label = "Additional interest-rate response, p.p.",
+  output_file = "figures/transmission/directed_credit_rate_extra_high_state.png"
+)
 
 
 
@@ -924,7 +1085,7 @@ library(tidyverse)
 # ------------------------------------------------------------
 # Helper: create lags
 # ------------------------------------------------------------
-
+ 
 make_lags <- function(data, vars, n_lags = 6) {
   out <- data
   
@@ -1141,7 +1302,7 @@ audit_free_rate_lean <- audit_transmission_parsimony(
   # Lean specification:
   # no output gap, no inflation gap, no external macro controls.
   control_vars = c(),
-  current_control_vars = c(),
+  current_control_vars = c("credit_gdp_l1_dm"),
   
   horizons = 0:12,
   n_lags = 6,
@@ -1241,7 +1402,7 @@ audit_lag_grid_free_rate <- map_dfr(lag_grid, function(L) {
     shock_var = "delta_selic",
     state_var = "directed_credit_share",
     control_vars = c(),
-    current_control_vars = c(),
+    current_control_vars = c("credit_gdp_l1_dm"),
     horizons = 0:12,
     n_lags = L,
     gamma = 1.5,
